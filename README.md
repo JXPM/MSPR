@@ -11,3 +11,5 @@ Construire la structure de stockage des données
 Faire de l'UML
 
 Exploiter de manière automatisée et analyser les informations recueillies
+
+![alt text](image.png)
