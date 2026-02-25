@@ -11,6 +11,7 @@ git push --set-upstream origin main
 
 #fichier Maj et push
 git status
-git add image.png journal.sh README.md
+git add .
 git commit -m "maj de readme"
 git push origin main
+bonjour 
