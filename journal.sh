@@ -12,5 +12,8 @@ git push --set-upstream origin main
 #fichier Maj et push
 git status
 git add .
-git commit -m "maj de readme"
-git push origin main
+git commit -m "maj du projet"
+git push origin api
+
+#pull
+git pull origin main
