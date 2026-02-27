@@ -14,4 +14,3 @@ git status
 git add .
 git commit -m "maj de readme"
 git push origin main
-bonjour 
