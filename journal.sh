@@ -19,13 +19,13 @@ git push origin main
 git pull origin main --rebase
 
 # switch branch
-git checkout -b api 
+git checkout  main 
 
 git branch
 git status
 git add .
-git commit -m "Initialisation du backend FastAPI structure"
-git push --set-upstream origin api
+git commit -m "Maj du depôt"
+git push --set-upstream origin main
 
 
 # merge branch
