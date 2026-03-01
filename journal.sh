@@ -12,18 +12,22 @@ git push --set-upstream origin main
 #fichier Maj et push
 git status
 git add journal.sh
-git commit -m "maj de readme"
+git commit -m "maj journal.sh"
 git push origin main
 
-# pull
+# pull  
 git pull origin main --rebase
 
 # switch branch
-git checkout -b api 
+git checkout  main 
 
 git branch
 git status
 git add .
-git commit -m "Initialisation du backend FastAPI structure"
-git push --set-upstream origin api
+git commit -m "Maj du depôt"
+git push --set-upstream origin main
 
+
+# merge branch
+git checkout main
+git merge api
