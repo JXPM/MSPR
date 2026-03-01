@@ -110,5 +110,6 @@ La phase suivante intégrera :
 ## Équipe projet
 
 Projet réalisé dans le cadre de la certification professionnelle  
-membres de l’equipe : Kouamé Johan BILÉ, Joseph HACCANDY, Glody KUTUMBAKANA 
+membres de l’equipe : Kouamé Johan BILÉ, Joseph HACCANDY, Glody KUTUMBAKANA, Nabil DIA
+
 **Développeur en Intelligence Artificielle & Data Science – RNCP36581**
