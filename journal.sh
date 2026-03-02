@@ -26,15 +26,14 @@ git push origin main
 git pull origin main
 
 # switch branch
-git checkout  api 
+git checkout  joseph
 
 git branch
 git status
 git add .
 git commit -m "ajout des services et des routes"
-git push --set-upstream origin api
+git push --set-upstream origin joseph
 
 
 # merge branch
 git checkout main
-git merge api
