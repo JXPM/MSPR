@@ -31,8 +31,8 @@ git checkout  joseph
 git branch
 git status
 git add .
-git commit -m "ajout des services et des routes"
-git push --set-upstream origin joseph
+git commit -m "Maj MCD et ajout latex"
+git push --set-upstream origin joseph  
 
 
 # merge branch
