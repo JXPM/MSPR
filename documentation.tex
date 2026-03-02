@@ -1,0 +1,1209 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{color}
+\usepackage{colortbl}
+\usepackage{longtable}
+\usepackage{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows, shapes, positioning, shadows, trees}
+
+\geometry{margin=2.5cm}
+
+\title{\textbf{Projet OBrail Europe} \\
+\large Documentation Technique - Système d'Intégration de Données Ferroviaires}
+\author{Équipe Projet}
+\date{\today}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Présentation du projet}
+
+\subsection{Contexte et objectifs}
+
+OBrail Europe est un observatoire indépendant spécialisé dans l'analyse des dessertes ferroviaires et la mobilité durable. Créé en 2018, cet organisme s'est imposé comme un acteur de référence dans l'analyse des flux ferroviaires à l'échelle européenne.
+
+\textbf{Sa mission} consiste à :
+\begin{itemize}
+    \item Collecter et analyser les données relatives aux dessertes ferroviaires en Europe
+    \item Évaluer l'impact environnemental des modes de transport longue distance
+    \item Produire des études comparatives destinées aux décideurs politiques et aux opérateurs ferroviaires
+    \item Accompagner la transition écologique en favorisant l'usage du train comme alternative à l'avion sur les trajets intra-européens
+\end{itemize}
+
+\subsection{Problématique}
+
+Les données relatives aux dessertes ferroviaires européennes sont actuellement dispersées et publiées par une multitude d'acteurs sous des formats hétérogènes :
+\begin{itemize}
+    \item Fichiers CSV
+    \item Flux GTFS (General Transit Feed Specification)
+    \item API
+    \item Fichiers Excel
+    \item Données HTML (web scraping)
+\end{itemize}
+
+Cette diversité de sources et de formats engendre une \textbf{qualité hétérogène des jeux de données}, rendant leur exploitation et leur standardisation particulièrement complexes. Pourtant, une standardisation exigeante est indispensable pour permettre des analyses fiables et comparables à l'échelle européenne.
+
+\subsection{Objectif du projet}
+
+L'objectif de ce projet est de \textbf{mettre en place un processus ETL (Extract, Transform, Load) pérenne} permettant de :
+
+\begin{enumerate}
+    \item \textbf{Collecter} automatiquement les données depuis leurs sources respectives
+    \item \textbf{Transformer} et nettoyer ces données pour garantir leur qualité et leur standardisation
+    \item \textbf{Stocker} l'information dans une base de données relationnelle structurée
+    \item \textbf{Exposer} les données fiabilisées via des API REST pour faciliter leur réutilisation
+    \item \textbf{Proposer} un tableau de bord de contrôle pour visualiser la qualité et la couverture des données
+\end{enumerate}
+
+\subsection{Livrables attendus}
+
+À l'issue de ce projet, les livrables suivants seront fournis :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{5cm}|p{8cm}|}
+\hline
+\textbf{Livrable} & \textbf{Description} \\
+\hline
+Scripts ETL & Ensemble de jobs automatisés pour l'intégration des données \\
+\hline
+Modèle conceptuel de données & Schéma relationnel de la base de données \\
+\hline
+Base de données alimentée & Base PostgreSQL contenant les données consolidées \\
+\hline
+API REST & Interface de programmation pour accéder aux données \\
+\hline
+Documentation technique & Guide complet du système \\
+\hline
+Tableau de bord & Interface de visualisation et de contrôle \\
+\hline
+Support de soutenance & Présentation synthétique du projet \\
+\hline
+\end{tabular}
+\caption{Livrables du projet}
+\end{table}
+
+\section{Choix technologiques}
+
+\subsection{Architecture générale}
+
+L'architecture technique du projet s'articule autour de quatre composants principaux :
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[node distance=2cm, auto, >=stealth]
+    \node (sources) [rectangle, draw, fill=blue!20, text width=3cm, align=center] {Sources de données\\ (CSV, JSON, GTFS, TSV)};
+    \node (etl) [rectangle, draw, fill=green!20, text width=3cm, align=center, below of=sources, node distance=2.5cm] {Talend Open Studio};
+    \node (db) [rectangle, draw, fill=yellow!20, text width=3cm, align=center, below of=etl, node distance=2.5cm] {PostgreSQL};
+    \node (api) [rectangle, draw, fill=orange!20, text width=3cm, align=center, below left of=db, node distance=3cm] {Flask API};
+    \node (dashboard) [rectangle, draw, fill=red!20, text width=3cm, align=center, below right of=db, node distance=3cm] {Streamlit};
+    
+    \draw[->, thick] (sources) -- (etl);
+    \draw[->, thick] (etl) -- (db);
+    \draw[->, thick] (db) -- (api);
+    \draw[->, thick] (db) -- (dashboard);
+\end{tikzpicture}
+\caption{Architecture technique du système}
+\end{figure}
+
+\subsection{Justification des technologies retenues}
+
+\subsubsection{Talend Open Studio pour l'ETL}
+
+Talend Open Studio a été retenu comme solution d'intégration de données pour les raisons suivantes :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10cm}|}
+\hline
+\textbf{Critère} & \textbf{Justification} \\
+\hline
+Open Source & Solution gratuite sans coût de licence, adaptée au budget d'un observatoire \\
+\hline
+Interface graphique intuitive & Permet de concevoir des jobs ETL complexes sans programmation intensive, facilitant la maintenance \\
+\hline
+Connecteurs multiples & Support natif des formats présents dans notre projet (CSV, JSON, TSV, fichiers plats) \\
+\hline
+Gestion des flux GTFS & Capacité à traiter les données GTFS, standard essentiel dans le domaine ferroviaire \\
+\hline
+Reproductibilité & Les jobs peuvent être exécutés de manière planifiée et répétée sans intervention manuelle \\
+\hline
+Communauté active & Large base d'utilisateurs et documentation abondante \\
+\hline
+\end{tabular}
+\caption{Justification du choix de Talend}
+\end{table}
+
+Talend permet d'automatiser l'ensemble du processus de collecte, de transformation et de chargement des données, répondant ainsi parfaitement à l'exigence de \textbf{reproductibilité} du cahier des charges.
+
+\subsubsection{PostgreSQL comme système de gestion de base de données}
+
+PostgreSQL a été choisi comme SGBD pour les raisons suivantes :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10cm}|}
+\hline
+\textbf{Critère} & \textbf{Justification} \\
+\hline
+Gratuit et open source & Aucun coût de licence, conforme aux contraintes budgétaires \\
+\hline
+Robustesse et fiabilité & Système éprouvé, utilisé par de nombreuses organisations internationales \\
+\hline
+Conformité ACID & Garantie d'intégrité des données transactionnelles \\
+\hline
+Support des données spatiales & Extension PostGIS disponible pour les traitements géographiques (gares, tracés) \\
+\hline
+Performances & Excellentes capacités pour des bases de données de taille intermédiaire \\
+\hline
+PgAdmin & Interface d'administration intuitive facilitant la gestion quotidienne \\
+\hline
+Respect des standards SQL & Portabilité et interopérabilité assurées \\
+\hline
+\end{tabular}
+\caption{Justification du choix de PostgreSQL}
+\end{table}
+
+Le choix de PostgreSQL plutôt qu'une solution NoSQL (comme MongoDB) se justifie par :
+\begin{itemize}
+    \item La nature \textbf{hautement relationnelle} des données ferroviaires (gares, trajets, lignes, opérateurs)
+    \item Le besoin d'\textbf{intégrité référentielle} (clés étrangères, contraintes)
+    \item La nécessité d'effectuer des \textbf{requêtes complexes} (jointures, agrégations)
+    \item La taille des données (quelques dizaines de Go) qui ne nécessite pas une architecture Big Data
+\end{itemize}
+
+\subsubsection{Flask pour l'API REST}
+
+Flask a été retenu pour le développement de l'API REST pour les raisons suivantes :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10cm}|}
+\hline
+\textbf{Critère} & \textbf{Justification} \\
+\hline
+Léger et flexible & Micro-framework parfait pour créer des API rapidement \\
+\hline
+Documentation exhaustive & Facilité d'apprentissage et de prise en main \\
+\hline
+Extensions disponibles & Flask-RESTful, Flask-SQLAlchemy pour faciliter le développement \\
+\hline
+Communauté Python & Large écosystème et support \\
+\hline
+\end{tabular}
+\caption{Justification du choix de Flask}
+\end{table}
+
+\subsubsection{Streamlit pour le tableau de bord}
+
+Streamlit a été choisi pour la visualisation des données car :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10cm}|}
+\hline
+\textbf{Critère} & \textbf{Justification} \\
+\hline
+Simplicité de développement & Création rapide d'interfaces avec uniquement du Python \\
+\hline
+Intégration avec Pandas & Manipulation aisée des données \\
+\hline
+Rafraîchissement automatique & Mise à jour simplifiée des visualisations \\
+\hline
+Open source & Gratuit et open source \\
+\hline
+\end{tabular}
+\caption{Justification du choix de Streamlit}
+\end{table}
+
+\section{Sources de données retenues}
+
+\subsection{Inventaire des sources}
+
+Après analyse des fichiers disponibles, les sources suivantes ont été retenues pour alimenter la base de données :
+
+\begin{longtable}{|p{3.5cm}|p{5cm}|p{1.5cm}|p{1.5cm}|p{2.5cm}|}
+\hline
+\textbf{Nom du fichier} & \textbf{Source} & \textbf{Format} & \textbf{Nb} & \textbf{Tables alimentées} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Nom du fichier} & \textbf{Source} & \textbf{Format} & \textbf{Nb} & \textbf{Tables alimentées} \\
+\hline
+\endhead
+\hline
+\multicolumn{5}{|r|}{Suite sur la page suivante} \\
+\hline
+\endfoot
+\hline
+\endlastfoot
+
+\texttt{stations.csv} & transport.data.gouv.fr & .csv & 1 & Gare, Pays \\
+\hline
+\texttt{Export\_OpenData\_SNCF\_GTFS\_NewTripId} & SNCF & .txt (GTFS) & 8 & Ligne, Trajet, Itineaire, Operateur \\
+\hline
+\texttt{agencies.json} (nigth) & Back-on-Track.eu & .json & 13 & Operateur, Pays \\
+\hline
+\texttt{routes.json} (nigth) & Back-on-Track.eu & .json & 1 & Ligne, type\_train, exploite \\
+\hline
+\texttt{view\_ontd\_map.json} (nigth) & Back-on-Track.eu & .json & 1 & Trajet, Itineaire \\
+\hline
+\texttt{view\_ontd\_list.json} (nigth) & Back-on-Track.eu & .json & 1 & Trajet, Itineaire \\
+\hline
+\texttt{emission-co2-perimetre-usage.csv} & data.gouv.fr & .csv & 1 & emission \\
+\hline
+\texttt{emission-co2-perimetre-complet.csv} & data.gouv.fr & .csv & 1 & emission \\
+\hline
+\texttt{bilans-des-emissions-sncf.csv} & SNCF Open Data & .csv & 1 & Documentation \\
+\hline
+\texttt{eu-airports.csv} & OurAirports & .csv & 1 & Pays \\
+\hline
+\texttt{base-carboner-plane.csv} & Base Carbone® & .csv & 1 & Documentation \\
+\hline
+\texttt{base-carboner-train.xlsx} & Base Carbone® & .xlsx & 1 & Documentation \\
+\hline
+\texttt{station\_to\_station.csv} & Infrabel Open Data & .csv & 1 & Contrôle qualité \\
+\hline
+\texttt{estat\_rail\_tf\_traveh.tsv} & Eurostat & .tsv & 1 & Documentation \\
+\hline
+\texttt{stiptheid-van-eurostar-treinen.json} & Infrabel Open Data & .json & 1 & Ponctualité \\
+\hline
+\end{longtable}
+
+\subsection{Justification des sources retenues}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{11cm}|}
+\hline
+\textbf{Source} & \textbf{Justification} \\
+\hline
+transport.data.gouv.fr & Plateforme officielle des données de transport en France, garantissant fiabilité et mise à jour régulière \\
+\hline
+SNCF Open Data & Opérateur ferroviaire majeur, données de référence pour le réseau français \\
+\hline
+Back-on-Track.eu & Association spécialisée dans les trains de nuit européens, fournissant des données consolidées sur les liaisons internationales \\
+\hline
+Eurostat & Institut statistique officiel de l'Union Européenne, données certifiées \\
+\hline
+Infrabel & Gestionnaire du réseau ferroviaire belge, données techniques précises \\
+\hline
+Base Carbone® (ADEME) & Référence nationale pour les facteurs d'émission, données scientifiques validées \\
+\hline
+\end{tabular}
+\caption{Justification des sources de données}
+\end{table}
+
+\subsection{Fichiers écartés}
+
+Certains fichiers n'ont pas été retenus pour l'intégration directe :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{5cm}|p{9.5cm}|}
+\hline
+\textbf{Fichier} & \textbf{Raison de l'exclusion} \\
+\hline
+\texttt{bilans-des-emissions-sncf.csv} & Données agrégées au niveau entreprise, pas au niveau trajet \\
+\hline
+\texttt{base-carboner-train.xlsx} & Données de référence à utiliser en documentation plutôt qu'en intégration \\
+\hline
+Fichiers JSON non structurés & Nécessitent un prétraitement supplémentaire \\
+\hline
+\end{tabular}
+\caption{Fichiers écartés de l'intégration directe}
+\end{table}
+
+\section{Conformité RGPD}
+
+\subsection{Principes généraux}
+
+Le projet OBrail Europe s'inscrit dans une démarche de \textbf{conformité stricte avec le Règlement Général sur la Protection des Données (RGPD)}. Voici comment notre traitement respecte les principes fondamentaux :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10.5cm}|}
+\hline
+\textbf{Principe RGPD} & \textbf{Application dans le projet} \\
+\hline
+Licéité, loyauté, transparence & Les données proviennent de sources ouvertes et officielles, explicitement publiées en open data \\
+\hline
+Limitation des finalités & Les données sont utilisées uniquement pour l'analyse des dessertes ferroviaires et l'évaluation environnementale \\
+\hline
+Minimisation des données & Seules les données nécessaires à l'analyse sont collectées (pas de données personnelles) \\
+\hline
+Exactitude & Les processus ETL incluent des contrôles de qualité et de cohérence \\
+\hline
+Limitation de la conservation & Les données sont actualisées régulièrement, pas de conservation excessive \\
+\hline
+Intégrité et confidentialité & Accès sécurisé à la base de données, pas de diffusion de données brutes \\
+\hline
+Responsabilité & Documentation complète du traitement et des sources \\
+\hline
+\end{tabular}
+\caption{Application des principes RGPD}
+\end{table}
+
+\subsection{Nature des données traitées}
+
+Notre base de données contient exclusivement :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{6cm}|p{4cm}|}
+\hline
+\textbf{Type de données} & \textbf{Exemples} & \textbf{Caractère personnel} \\
+\hline
+Données géographiques & Coordonnées de gares, tracés de lignes & Non personnel \\
+\hline
+Données opérationnelles & Horaires, opérateurs, identifiants de trains & Non personnel \\
+\hline
+Données environnementales & Émissions de CO2, facteurs d'émission & Non personnel \\
+\hline
+Données de référence & Codes pays, noms de gares & Non personnel \\
+\hline
+\end{tabular}
+\caption{Nature des données traitées}
+\end{table}
+
+\textbf{Aucune donnée personnelle} (nom, prénom, adresse, email, etc.) n'est collectée, stockée ou traitée dans le cadre de ce projet.
+
+\subsection{Justification de la non-nécessité de consentement}
+
+Conformément à l'article 6 du RGPD, notre traitement est licite car :
+
+\begin{enumerate}
+    \item \textbf{Intérêt public} : L'analyse des dessertes ferroviaires et l'évaluation de l'impact environnemental des transports répond à une mission d'intérêt public (transition écologique)
+    \item \textbf{Sources officielles} : Toutes les données proviennent de sources publiques en open data, publiées explicitement pour être réutilisées
+    \item \textbf{Absence de données sensibles} : Aucune des catégories particulières de données (art. 9 RGPD) n'est traitée
+\end{enumerate}
+
+\subsection{Mesures de sécurité}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10.5cm}|}
+\hline
+\textbf{Mesure} & \textbf{Description} \\
+\hline
+Authentification & Accès à la base de données protégé par mot de passe \\
+\hline
+Journalisation & Traçabilité des accès et des modifications \\
+\hline
+Anonymisation & Les données sont déjà anonymes par nature \\
+\hline
+Hébergement & Base de données hébergée en local, pas de transfert hors UE \\
+\hline
+Documentation & Registre des traitements tenu à jour \\
+\hline
+\end{tabular}
+\caption{Mesures de sécurité mises en place}
+\end{table}
+
+\subsection{Droits des personnes}
+
+Bien que notre base ne contienne pas de données personnelles, nous avons prévu des procédures pour répondre aux éventuelles demandes :
+\begin{itemize}
+    \item \textbf{Droit d'accès} : Possibilité de consulter l'intégralité des données
+    \item \textbf{Droit de rectification} : Processus de correction des erreurs identifiées
+    \item \textbf{Droit à l'effacement} : Suppression possible sur demande motivée
+\end{itemize}
+
+\section{Processus ETL (Extract, Transform, Load)}
+
+\subsection{Architecture du processus ETL}
+
+Le processus ETL est organisé en plusieurs phases, exécutées séquentiellement pour respecter les contraintes d'intégrité référentielle :
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, auto, >=stealth]
+    \node (phase1) [rectangle, draw, fill=blue!20, text width=8cm, align=center] {\textbf{PHASE 1 : Tables référentielles}\\
+        \small Pays (stations.csv, agencies.json, eu-airports.csv)\\
+        \small Source (saisie manuelle)\\
+        \small Gare (stations.csv)};
+    
+    \node (phase2) [rectangle, draw, fill=green!20, text width=8cm, align=center, below of=phase1, node distance=3cm] {\textbf{PHASE 2 : Tables opérateurs et types}\\
+        \small Operateur (agencies.json)\\
+        \small type\_train (routes.json)};
+    
+    \node (phase3) [rectangle, draw, fill=yellow!20, text width=8cm, align=center, below of=phase2, node distance=3cm] {\textbf{PHASE 3 : Tables métier}\\
+        \small Ligne (routes.json)\\
+        \small Trajet (view\_ontd\_map.json)\\
+        \small Itineaire (view\_ontd\_map.json, view\_ontd\_list.json)};
+    
+    \node (phase4) [rectangle, draw, fill=orange!20, text width=8cm, align=center, below of=phase3, node distance=3cm] {\textbf{PHASE 4 : Tables d'émission et associations}\\
+        \small emission (emission-co2-perimetre-usage.csv)\\
+        \small exploite (routes.json)\\
+        \small utilisation (routes.json)};
+    
+    \draw[->, thick] (phase1) -- (phase2);
+    \draw[->, thick] (phase2) -- (phase3);
+    \draw[->, thick] (phase3) -- (phase4);
+\end{tikzpicture}
+\caption{Phases du processus ETL}
+\end{figure}
+
+\subsection{Détail des jobs Talend}
+
+\subsubsection{Job 1 : Integration\_Pays}
+
+\textbf{Objectif} : Alimenter la table Pays avec les codes uniques
+
+\textbf{Sources} :
+\begin{itemize}
+    \item \texttt{stations.csv} (colonne \texttt{country})
+    \item \texttt{agencies.json} (colonne \texttt{agency\_state})
+    \item \texttt{eu-airports.csv} (colonne \texttt{iso\_country})
+    \item \texttt{lists\_of\_iso\_3166.csv} (référence ISO)
+\end{itemize}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture des fichiers sources
+    \item Extraction des codes pays uniques
+    \item Dédoublonnage avec \texttt{tUniqueRow}
+    \item Enrichissement avec les noms complets depuis la liste ISO
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 2 : Integration\_Gare}
+
+\textbf{Objectif} : Alimenter la table Gare
+
+\textbf{Source} : \texttt{stations.csv}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier (séparateur \texttt{;})
+    \item Filtrage des lignes avec \texttt{code\_uic} non vide
+    \item Nettoyage des coordonnées (remplacement des virgules par des points)
+    \item Mapping des colonnes :
+        \begin{itemize}
+            \item \texttt{code\_uic} ← \texttt{uic}
+            \item \texttt{gare\_nom} ← \texttt{name}
+            \item \texttt{longitude} ← \texttt{longitude}
+            \item \texttt{latitude} ← \texttt{latitude}
+            \item \texttt{iso\_pays} ← \texttt{country} (avec valeur par défaut)
+        \end{itemize}
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 3 : Integration\_Operateur}
+
+\textbf{Objectif} : Alimenter la table Operateur
+
+\textbf{Source} : \texttt{agencies.json} (dossier nigth)
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier JSON
+    \item Parsing des objets JSON
+    \item Mapping des colonnes :
+        \begin{itemize}
+            \item \texttt{operateur\_nom} ← \texttt{agency\_name}
+            \item \texttt{iso\_pays} ← \texttt{agency\_state}
+        \end{itemize}
+    \item Dédoublonnage
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 4 : Integration\_Ligne}
+
+\textbf{Objectif} : Alimenter la table Ligne
+
+\textbf{Source} : \texttt{routes.json}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier JSON
+    \item Parsing des objets JSON
+    \item Construction du nom de ligne à partir de \texttt{origin\_trip\_0} et \texttt{destination\_trip\_0}
+    \item Mapping :
+        \begin{itemize}
+            \item \texttt{ligne\_nom} ← concaténation origine-destination
+            \item \texttt{distance} ← \texttt{distance} (si disponible)
+            \item \texttt{type\_service} ← 'NUIT' (par défaut)
+        \end{itemize}
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 5 : Integration\_Trajet}
+
+\textbf{Objectif} : Alimenter la table Trajet
+
+\textbf{Source} : \texttt{view\_ontd\_map.json}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier JSON
+    \item Pour chaque route, création de deux trajets (aller et retour)
+    \item Mapping :
+        \begin{itemize}
+            \item \texttt{trajet\_id} ← \texttt{trip\_short\_name\_0} / \texttt{trip\_short\_name\_1}
+            \item \texttt{ligne\_id} ← lookup dans table Ligne
+            \item \texttt{gare\_depart} ← \texttt{origin\_trip\_0} / \texttt{origin\_trip\_1}
+            \item \texttt{gare\_arrivee} ← \texttt{destination\_trip\_0} / \texttt{destination\_trip\_1}
+            \item \texttt{heure\_depart} ← \texttt{origin\_departure\_time\_0} / \texttt{origin\_departure\_time\_1}
+            \item \texttt{heure\_arrivee} ← \texttt{destination\_arrival\_time\_0} / \texttt{destination\_arrival\_time\_1}
+        \end{itemize}
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 6 : Integration\_Itineaire}
+
+\textbf{Objectif} : Alimenter la table Itineaire
+
+\textbf{Sources} : \texttt{view\_ontd\_map.json} et \texttt{view\_ontd\_list.json}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture des fichiers JSON
+    \item Parsing de la colonne \texttt{via\_0} / \texttt{via\_1} pour extraire les gares intermédiaires
+    \item Création d'une ligne par gare avec \texttt{ordre\_passage} incrémental
+    \item Mapping :
+        \begin{itemize}
+            \item \texttt{trajet\_id} ← \texttt{trip\_short\_name\_0} / \texttt{trip\_short\_name\_1}
+            \item \texttt{ordre\_passage} ← position dans la liste
+            \item \texttt{route\_empruntee} ← description complète
+            \item \texttt{code\_uic} ← lookup dans table Gare (par nom)
+        \end{itemize}
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 7 : Integration\_Emission}
+
+\textbf{Objectif} : Alimenter la table emission
+
+\textbf{Source} : \texttt{emission-co2-perimetre-usage.csv}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier CSV
+    \item Nettoyage des données
+    \item Mapping :
+        \begin{itemize}
+            \item \texttt{transporteur} ← \texttt{Transporteur}
+            \item \texttt{origine} ← \texttt{Origine}
+            \item \texttt{destination} ← \texttt{Destination}
+            \item \texttt{distance\_train\_km} ← \texttt{Distance entre les gares}
+            \item \texttt{empreinte\_train\_kg} ← \texttt{Train - Empreinte carbone (kgCO2e)}
+            \item \texttt{distance\_route\_km} ← \texttt{Distance routière}
+            \item \texttt{distance\_avion\_km} ← \texttt{Distance aérienne}
+            \item \texttt{empreinte\_avion\_kg} ← \texttt{Avion - Empreinte carbone (kgCO2e)}
+        \end{itemize}
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 8 : Integration\_Exploite}
+
+\textbf{Objectif} : Alimenter la table exploite (lien opérateur-ligne)
+
+\textbf{Source} : \texttt{routes.json}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier JSON
+    \item Pour chaque route, extraction des opérateurs (\texttt{agency\_id}, \texttt{agency\_1}, \texttt{agency\_2}, \texttt{agency\_3})
+    \item Jointure avec la table Operateur
+    \item Jointure avec la table Ligne
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsubsection{Job 9 : Integration\_Utilisation}
+
+\textbf{Objectif} : Alimenter la table utilisation (lien opérateur-type\_train)
+
+\textbf{Source} : \texttt{routes.json}
+
+\textbf{Étapes} :
+\begin{enumerate}
+    \item Lecture du fichier JSON
+    \item Parsing de la colonne \texttt{classes}
+    \item Pour chaque opérateur, association avec les types de trains disponibles
+    \item Insertion dans PostgreSQL
+\end{enumerate}
+
+\subsection{Automatisation et reproductibilité}
+
+Les jobs Talend sont conçus pour être \textbf{exécutés de manière automatique et répétée} :
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{4cm}|p{10.5cm}|}
+\hline
+\textbf{Caractéristique} & \textbf{Implémentation} \\
+\hline
+Planification & Les jobs peuvent être planifiés via le scheduler Talend ou des tâches CRON \\
+\hline
+Idempotence & Les insertions utilisent "Insert or Update" pour éviter les doublons \\
+\hline
+Journalisation & Traces d'exécution pour chaque job \\
+\hline
+Gestion des erreurs & Rejets capturés dans des fichiers dédiés \\
+\hline
+Paramétrage & Chemins de fichiers et connexions paramétrés \\
+\hline
+\end{tabular}
+\caption{Mécanismes d'automatisation et reproductibilité}
+\end{table}
+
+\section{Schéma de la base de données}
+
+\subsection{Modèle relationnel}
+
+Le modèle relationnel est organisé autour des entités suivantes :
+
+\begin{figure}[h!]
+\centering
+\begin{tikzpicture}[node distance=2cm and 2.5cm, auto, >=stealth]
+    \node (pays) [rectangle, draw, fill=blue!20, text width=2.5cm, align=center] {Pays};
+    \node (operateur) [rectangle, draw, fill=green!20, text width=2.5cm, align=center, right=of pays] {Operateur};
+    \node (gare) [rectangle, draw, fill=yellow!20, text width=2.5cm, align=center, below=of pays] {Gare};
+    \node (type_train) [rectangle, draw, fill=orange!20, text width=2.5cm, align=center, below=of operateur] {type\_train};
+    \node (ligne) [rectangle, draw, fill=red!20, text width=2.5cm, align=center, right=of type_train] {Ligne};
+    \node (exploite) [rectangle, draw, fill=purple!20, text width=2.5cm, align=center, above right=of ligne] {exploite};
+    \node (utilisation) [rectangle, draw, fill=purple!20, text width=2.5cm, align=center, below right=of ligne] {utilisation};
+    \node (trajet) [rectangle, draw, fill=brown!20, text width=2.5cm, align=center, right=of ligne, node distance=4cm] {Trajet};
+    \node (itineaire) [rectangle, draw, fill=pink!20, text width=2.5cm, align=center, below=of trajet] {Itineaire};
+    \node (emission) [rectangle, draw, fill=gray!20, text width=2.5cm, align=center, below=of gare, node distance=3cm] {emission};
+    \node (source) [rectangle, draw, fill=cyan!20, text width=2.5cm, align=center, right=of emission] {Source};
+    
+    \draw[->] (pays) -- (operateur);
+    \draw[->] (pays) -- (gare);
+    \draw[->] (operateur) -- (exploite);
+    \draw[->] (operateur) -- (utilisation);
+    \draw[->] (type_train) -- (utilisation);
+    \draw[->] (ligne) -- (exploite);
+    \draw[->] (ligne) -- (trajet);
+    \draw[->] (trajet) -- (itineaire);
+    \draw[->] (gare) -- (itineaire);
+\end{tikzpicture}
+\caption{Modèle relationnel de la base de données}
+\end{figure}
+
+\subsection{Détail des tables}
+
+\subsubsection{Table Pays}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Pays]
+CREATE TABLE Pays(
+   iso_pays VARCHAR(100),
+   nom_pays VARCHAR(200),
+   PRIMARY KEY(iso_pays)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{iso\_pays} & VARCHAR(100) & PRIMARY KEY & Code ISO du pays (FR, DE, etc.) \\
+\hline
+\texttt{nom\_pays} & VARCHAR(200) & NOT NULL & Nom complet du pays \\
+\hline
+\end{tabular}
+\caption{Détail de la table Pays}
+\end{table}
+
+\subsubsection{Table Operateur}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Operateur]
+CREATE TABLE Operateur(
+   code_operateur SERIAL,
+   operateur_nom VARCHAR(50),
+   iso_pays VARCHAR(50) NOT NULL,
+   PRIMARY KEY(code_operateur),
+   FOREIGN KEY(iso_pays) REFERENCES Pays(iso_pays)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{code\_operateur} & SERIAL & PRIMARY KEY & Identifiant unique \\
+\hline
+\texttt{operateur\_nom} & VARCHAR(50) & NOT NULL & Nom de l'opérateur \\
+\hline
+\texttt{iso\_pays} & VARCHAR(50) & FK → Pays & Pays d'origine \\
+\hline
+\end{tabular}
+\caption{Détail de la table Operateur}
+\end{table}
+
+\subsubsection{Table Gare}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Gare]
+CREATE TABLE Gare(
+   code_uic INTEGER,
+   gare_nom VARCHAR(200),
+   longitude DECIMAL(9,6),
+   latitude DECIMAL(9,6),
+   iso_pays VARCHAR(100),
+   PRIMARY KEY(code_uic),
+   FOREIGN KEY(iso_pays) REFERENCES Pays(iso_pays)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{code\_uic} & INTEGER & PRIMARY KEY & Code UIC de la gare \\
+\hline
+\texttt{gare\_nom} & VARCHAR(200) & NOT NULL & Nom de la gare \\
+\hline
+\texttt{longitude} & DECIMAL(9,6) & - & Coordonnée géographique \\
+\hline
+\texttt{latitude} & DECIMAL(9,6) & - & Coordonnée géographique \\
+\hline
+\texttt{iso\_pays} & VARCHAR(100) & FK → Pays & Pays de la gare \\
+\hline
+\end{tabular}
+\caption{Détail de la table Gare}
+\end{table}
+
+\subsubsection{Table Source}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Source]
+CREATE TABLE Source(
+   Id_Source SERIAL,
+   url VARCHAR(200),
+   nom_fichier VARCHAR(50),
+   format VARCHAR(50),
+   nombre_fichier INT,
+   PRIMARY KEY(Id_Source)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{Id\_Source} & SERIAL & PRIMARY KEY & Identifiant source \\
+\hline
+\texttt{url} & VARCHAR(200) & - & URL d'origine \\
+\hline
+\texttt{nom\_fichier} & VARCHAR(50) & NOT NULL & Nom du fichier \\
+\hline
+\texttt{format} & VARCHAR(50) & NOT NULL & Format (CSV, JSON, etc.) \\
+\hline
+\texttt{nombre\_fichier} & INT & - & Nombre de fichiers \\
+\hline
+\end{tabular}
+\caption{Détail de la table Source}
+\end{table}
+
+\subsubsection{Table Ligne}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Ligne]
+CREATE TABLE Ligne(
+   Id_Ligne SERIAL,
+   ligne_nom VARCHAR(50),
+   distance DECIMAL(15,2),
+   type_service VARCHAR(50) CHECK (type_service IN ('JOUR', 'NUIT')),
+   PRIMARY KEY(Id_Ligne)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{Id\_Ligne} & SERIAL & PRIMARY KEY & Identifiant ligne \\
+\hline
+\texttt{ligne\_nom} & VARCHAR(50) & NOT NULL & Nom de la ligne \\
+\hline
+\texttt{distance} & DECIMAL(15,2) & - & Distance en km \\
+\hline
+\texttt{type\_service} & VARCHAR(50) & CHECK & 'JOUR' ou 'NUIT' \\
+\hline
+\end{tabular}
+\caption{Détail de la table Ligne}
+\end{table}
+
+\subsubsection{Table type\_train}
+\begin{lstlisting}[language=SQL, caption=Structure de la table type\_train]
+CREATE TABLE type_train(
+   Id_type_train SERIAL,
+   type_nom VARCHAR(50),
+   PRIMARY KEY(Id_type_train)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{Id\_type\_train} & SERIAL & PRIMARY KEY & Identifiant type \\
+\hline
+\texttt{type\_nom} & VARCHAR(50) & NOT NULL & Nom du type \\
+\hline
+\end{tabular}
+\caption{Détail de la table type\_train}
+\end{table}
+
+\subsubsection{Table Trajet}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Trajet]
+CREATE TABLE Trajet(
+   trajet_id VARCHAR(50),
+   ligne_id INT NOT NULL,
+   gare_depart VARCHAR(200),
+   gare_arrivee VARCHAR(200),
+   heure_depart TIME,
+   heure_arrivee TIME,
+   Id_Ligne INT NOT NULL,
+   PRIMARY KEY(trajet_id),
+   FOREIGN KEY(Id_Ligne) REFERENCES Ligne(Id_Ligne)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{trajet\_id} & VARCHAR(50) & PRIMARY KEY & Identifiant trajet \\
+\hline
+\texttt{ligne\_id} & INT & NOT NULL & Ligne associée \\
+\hline
+\texttt{gare\_depart} & VARCHAR(200) & - & Gare de départ \\
+\hline
+\texttt{gare\_arrivee} & VARCHAR(200) & - & Gare d'arrivée \\
+\hline
+\texttt{heure\_depart} & TIME & - & Heure de départ \\
+\hline
+\texttt{heure\_arrivee} & TIME & - & Heure d'arrivée \\
+\hline
+\texttt{Id\_Ligne} & INT & FK → Ligne & Ligne de référence \\
+\hline
+\end{tabular}
+\caption{Détail de la table Trajet}
+\end{table}
+
+\subsubsection{Table Itineaire}
+\begin{lstlisting}[language=SQL, caption=Structure de la table Itineaire]
+CREATE TABLE Itineaire(
+   trajet_id VARCHAR(50),
+   ordre_passage INT,
+   route_empruntee VARCHAR(200),
+   heure_depart TIME,
+   heure_arrivee TIME,
+   code_uic VARCHAR(10) NOT NULL,
+   PRIMARY KEY(trajet_id, ordre_passage),
+   FOREIGN KEY(trajet_id) REFERENCES Trajet(trajet_id),
+   FOREIGN KEY(code_uic) REFERENCES Gare(code_uic)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{trajet\_id} & VARCHAR(50) & FK → Trajet & Trajet associé \\
+\hline
+\texttt{ordre\_passage} & INT & NOT NULL & Ordre de passage \\
+\hline
+\texttt{route\_empruntee} & VARCHAR(200) & - & Description route \\
+\hline
+\texttt{heure\_depart} & TIME & - & Heure départ gare \\
+\hline
+\texttt{heure\_arrivee} & TIME & - & Heure arrivée gare \\
+\hline
+\texttt{code\_uic} & VARCHAR(10) & FK → Gare & Gare concernée \\
+\hline
+\end{tabular}
+\caption{Détail de la table Itineaire}
+\end{table}
+
+\subsubsection{Table emission}
+\begin{lstlisting}[language=SQL, caption=Structure de la table emission]
+CREATE TABLE emission(
+   id_emission SERIAL,
+   transporteur VARCHAR(200),
+   origine VARCHAR(300) NOT NULL,
+   destination VARCHAR(300) NOT NULL,
+   distance_train_km DECIMAL(10,3) NOT NULL,
+   empreinte_train_kg DECIMAL(10,6) NOT NULL,
+   distance_route_km DECIMAL(10,3),
+   distance_avion_km DECIMAL(10,3),
+   empreinte_avion_kg DECIMAL(10,6),
+   PRIMARY KEY(id_emission)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{id\_emission} & SERIAL & PRIMARY KEY & Identifiant émission \\
+\hline
+\texttt{transporteur} & VARCHAR(200) & - & Transporteur \\
+\hline
+\texttt{origine} & VARCHAR(300) & NOT NULL & Origine du trajet \\
+\hline
+\texttt{destination} & VARCHAR(300) & NOT NULL & Destination \\
+\hline
+\texttt{distance\_train\_km} & DECIMAL(10,3) & NOT NULL & Distance train \\
+\hline
+\texttt{empreinte\_train\_kg} & DECIMAL(10,6) & NOT NULL & Empreinte CO2 train \\
+\hline
+\texttt{distance\_route\_km} & DECIMAL(10,3) & - & Distance route \\
+\hline
+\texttt{distance\_avion\_km} & DECIMAL(10,3) & - & Distance avion \\
+\hline
+\texttt{empreinte\_avion\_kg} & DECIMAL(10,6) & - & Empreinte CO2 avion \\
+\hline
+\end{tabular}
+\caption{Détail de la table emission}
+\end{table}
+
+\subsubsection{Table exploite}
+\begin{lstlisting}[language=SQL, caption=Structure de la table exploite]
+CREATE TABLE exploite(
+   code_operateur INT,
+   Id_Ligne INT,
+   rang VARCHAR(50),
+   PRIMARY KEY(code_operateur, Id_Ligne),
+   FOREIGN KEY(code_operateur) REFERENCES Operateur(code_operateur),
+   FOREIGN KEY(Id_Ligne) REFERENCES Ligne(Id_Ligne)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{code\_operateur} & INT & FK → Operateur & Opérateur \\
+\hline
+\texttt{Id\_Ligne} & INT & FK → Ligne & Ligne exploitée \\
+\hline
+\texttt{rang} & VARCHAR(50) & - & Rang de l'opérateur \\
+\hline
+\end{tabular}
+\caption{Détail de la table exploite}
+\end{table}
+
+\subsubsection{Table utilisation}
+\begin{lstlisting}[language=SQL, caption=Structure de la table utilisation]
+CREATE TABLE utilisation(
+   code_operateur INT,
+   Id_type_train INT,
+   PRIMARY KEY(code_operateur, Id_type_train),
+   FOREIGN KEY(code_operateur) REFERENCES Operateur(code_operateur),
+   FOREIGN KEY(Id_type_train) REFERENCES type_train(Id_type_train)
+);
+\end{lstlisting}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{2.5cm}|p{4cm}|}
+\hline
+\textbf{Colonne} & \textbf{Type} & \textbf{Contrainte} & \textbf{Description} \\
+\hline
+\texttt{code\_operateur} & INT & FK → Operateur & Opérateur \\
+\hline
+\texttt{Id\_type\_train} & INT & FK → type\_train & Type de train \\
+\hline
+\end{tabular}
+\caption{Détail de la table utilisation}
+\end{table}
+
+\subsection{Script complet de création des tables}
+
+\begin{lstlisting}[language=SQL, caption=Script SQL complet de création des tables]
+-- Supprimer les tables si elles existent
+DROP TABLE IF EXISTS utilisation CASCADE;
+DROP TABLE IF EXISTS exploite CASCADE;
+DROP TABLE IF EXISTS emission CASCADE;
+DROP TABLE IF EXISTS Itineaire CASCADE;
+DROP TABLE IF EXISTS type_train CASCADE;
+DROP TABLE IF EXISTS Trajet CASCADE;
+DROP TABLE IF EXISTS Ligne CASCADE;
+DROP TABLE IF EXISTS Source CASCADE;
+DROP TABLE IF EXISTS Gare CASCADE;
+DROP TABLE IF EXISTS Operateur CASCADE;
+DROP TABLE IF EXISTS Pays CASCADE;
+
+-- Table Pays
+CREATE TABLE Pays(
+   iso_pays VARCHAR(100),
+   nom_pays VARCHAR(200),
+   PRIMARY KEY(iso_pays)
+);
+
+-- Table Operateur
+CREATE TABLE Operateur(
+   code_operateur SERIAL,
+   operateur_nom VARCHAR(50),
+   iso_pays VARCHAR(50) NOT NULL,
+   PRIMARY KEY(code_operateur),
+   FOREIGN KEY(iso_pays) REFERENCES Pays(iso_pays)
+);
+
+-- Table Gare
+CREATE TABLE Gare(
+   code_uic INTEGER,
+   gare_nom VARCHAR(200),
+   longitude DECIMAL(9,6),
+   latitude DECIMAL(9,6),
+   iso_pays VARCHAR(100),
+   PRIMARY KEY(code_uic),
+   FOREIGN KEY(iso_pays) REFERENCES Pays(iso_pays)
+);
+
+-- Table Source
+CREATE TABLE Source(
+   Id_Source SERIAL,
+   url VARCHAR(200),
+   nom_fichier VARCHAR(50),
+   format VARCHAR(50),
+   nombre_fichier INT,
+   PRIMARY KEY(Id_Source)
+);
+
+-- Table Ligne
+CREATE TABLE Ligne(
+   Id_Ligne SERIAL,
+   ligne_nom VARCHAR(50),
+   distance DECIMAL(15,2),
+   type_service VARCHAR(50) CHECK (type_service IN ('JOUR', 'NUIT')),
+   PRIMARY KEY(Id_Ligne)
+);
+
+-- Table type_train
+CREATE TABLE type_train(
+   Id_type_train SERIAL,
+   type_nom VARCHAR(50),
+   PRIMARY KEY(Id_type_train)
+);
+
+-- Table Trajet
+CREATE TABLE Trajet(
+   trajet_id VARCHAR(50),
+   ligne_id INT NOT NULL,
+   gare_depart VARCHAR(200),
+   gare_arrivee VARCHAR(200),
+   heure_depart TIME,
+   heure_arrivee TIME,
+   Id_Ligne INT NOT NULL,
+   PRIMARY KEY(trajet_id),
+   FOREIGN KEY(Id_Ligne) REFERENCES Ligne(Id_Ligne)
+);
+
+-- Table Itineaire
+CREATE TABLE Itineaire(
+   trajet_id VARCHAR(50),
+   ordre_passage INT,
+   route_empruntee VARCHAR(200),
+   heure_depart TIME,
+   heure_arrivee TIME,
+   code_uic VARCHAR(10) NOT NULL,
+   PRIMARY KEY(trajet_id, ordre_passage),
+   FOREIGN KEY(trajet_id) REFERENCES Trajet(trajet_id),
+   FOREIGN KEY(code_uic) REFERENCES Gare(code_uic)
+);
+
+-- Table emission
+CREATE TABLE emission(
+   id_emission SERIAL,
+   transporteur VARCHAR(200),
+   origine VARCHAR(300) NOT NULL,
+   destination VARCHAR(300) NOT NULL,
+   distance_train_km DECIMAL(10,3) NOT NULL,
+   empreinte_train_kg DECIMAL(10,6) NOT NULL,
+   distance_route_km DECIMAL(10,3),
+   distance_avion_km DECIMAL(10,3),
+   empreinte_avion_kg DECIMAL(10,6),
+   PRIMARY KEY(id_emission)
+);
+
+-- Table exploite
+CREATE TABLE exploite(
+   code_operateur INT,
+   Id_Ligne INT,
+   rang VARCHAR(50),
+   PRIMARY KEY(code_operateur, Id_Ligne),
+   FOREIGN KEY(code_operateur) REFERENCES Operateur(code_operateur),
+   FOREIGN KEY(Id_Ligne) REFERENCES Ligne(Id_Ligne)
+);
+
+-- Table utilisation
+CREATE TABLE utilisation(
+   code_operateur INT,
+   Id_type_train INT,
+   PRIMARY KEY(code_operateur, Id_type_train),
+   FOREIGN KEY(code_operateur) REFERENCES Operateur(code_operateur),
+   FOREIGN KEY(Id_type_train) REFERENCES type_train(Id_type_train)
+);
+\end{lstlisting}
+
+\section{Conclusion}
+
+Ce document présente la conception technique du système d'intégration de données pour OBrail Europe. L'architecture retenue, basée sur Talend pour l'ETL, PostgreSQL pour le stockage, Flask pour l'API et Streamlit pour la visualisation, répond aux exigences de :
+
+\begin{itemize}
+    \item \textbf{Pérennité} : Solution open source et maintenable
+    \item \textbf{Automatisation} : Jobs reproductibles et planifiables
+    \item \textbf{Qualité} : Contrôles et validation des données
+    \item \textbf{Traçabilité} : Documentation des sources et des traitements
+    \item \textbf{Conformité RGPD} : Aucune donnée personnelle traitée
+\end{itemize}
+
+Les prochaines étapes consisteront à implémenter l'API REST avec Flask et le tableau de bord avec Streamlit, complétant ainsi la chaîne complète de traitement des données ferroviaires européennes.
+
+\end{document}
