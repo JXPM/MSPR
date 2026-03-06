@@ -1,0 +1,23 @@
+nomFichier;source;format;nombreDefichier
+stations.csv;https://transport.data.gouv.fr/resources/7544;.csv;1
+bilans-des-emissions-de-gaz-a-effet-de-serre-sncf.csv;Bilans des émissions de gaz à effet de serre SNCF — SNCF Open Data;.csv;1
+emission-co2-perimetre-complet.csv;Jeu de données - Émissions de CO2e - périmètre complet | data.gouv.fr;.csv;1
+nigth.(dossierJson);Back-on-Track-eu;.(dossierJson);13
+estat_rail_tf_traveh.tsv;Product - Datasets - Eurostat;.tsv;1
+Export_OpenData_SNCF_GTFS_NewTripId.(dossierTxt);SNCF;.(dossierTxt);8
+emission-co2-perimetre-usage.csv;Jeu de données - Émissions de CO2e - périmètre usage | data.gouv.fr;.csv;1
+stiptheid-van-eurostar-treinen.json;Ponctualité des trains Eurostar - London Route — Infrabel - Open Data;.json;1
+station_to_station.csv;Tracés des distances entre deux gares adjacentes sur le réseau ferré — Infrabel - Open Data;.csv;1
+eu-airports.csv;Map of airports in Europe @ OurAirports;.csv;1
+base-carboner-plane.csv;Base carbone®;.csv;1
+base-carboner-train.xlsx;Base carbone®;.xlsx;1
+02_bot_agencies.json;https://github.com/Back-on-Track-eu/night-train-data;.json;1
+02_bot_routes.json;https://github.com/Back-on-Track-eu/night-train-data;.json;1
+02_bot_trip_stop.json;https://github.com/Back-on-Track-eu/night-train-data;.json;1
+02_bot_trips.json;https://github.com/Back-on-Track-eu/night-train-data;.json;1
+iso-3166.csv;https://www.iso.org/fr/iso-3166-country-codes.html;.csv;1
+;;;
+;;;
+;;;
+;;;
+;;;36
