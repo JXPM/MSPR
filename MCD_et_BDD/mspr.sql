@@ -53,8 +53,8 @@ CREATE TABLE gare (
 -- 4. source
 CREATE TABLE source (
     id_source      SERIAL PRIMARY KEY,
-    url            VARCHAR(200),
-    nom_fichier    VARCHAR(50),
+    url            VARCHAR(500),
+    nom_fichier    VARCHAR(200),
     format         VARCHAR(50),
     nombre_fichier INT
 );
