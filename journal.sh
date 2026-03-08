@@ -31,7 +31,7 @@ git checkout  joseph
 git branch
 git status
 git add .
-git commit -m "Maj MCD et ajout latex"
+git commit -m "Maj Mc"
 git push --set-upstream origin joseph  
 
 

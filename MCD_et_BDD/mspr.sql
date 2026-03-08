@@ -1,6 +1,6 @@
 -- =====================================================
 -- SCRIPT DE CRÉATION DE LA BASE DE DONNÉES
--- VERSION FINALE CORRIGÉE - TOUT EN MINUSCULES
+-- VERSION 2 — SEULE MODIFICATION : liaison emission → trajet
 -- =====================================================
 
 -- Suppression des tables (ordre inverse des dépendances)
@@ -76,7 +76,7 @@ CREATE TABLE type_train (
 );
 
 -- 7. trajet
--- heure_depart et heure_arrivee en VARCHAR(10) 
+-- heure_depart et heure_arrivee en VARCHAR(30)
 -- car Talend ne convertit pas String → TIME nativement
 -- Format stocké : HH:mm:ss (ex: 19:28:00)
 CREATE TABLE trajet (
@@ -102,15 +102,17 @@ CREATE TABLE itineraire (
 );
 
 -- 9. emission
+-- SOURCE    : trips.json (Back-on-Track) — même source que trajet
+-- emissions_co2e → empreinte_train_kg  (fourni directement)
+-- distance × 0.158 → empreinte_avion_kg (facteur ADEME/BEIS)
+-- Liaison trajet_id garantit la cohérence MCD : un trajet génère une émission
 CREATE TABLE emission (
     id_emission         SERIAL        PRIMARY KEY,
-    transporteur        VARCHAR(200),
-    origine             VARCHAR(300)  NOT NULL,
-    destination         VARCHAR(300)  NOT NULL,
-    distance_train_km   DECIMAL(10,3) NOT NULL,
-    empreinte_train_kg  DECIMAL(10,6) NOT NULL,
-    distance_avion_km   DECIMAL(10,3),
-    empreinte_avion_kg  DECIMAL(10,6)
+    empreinte_train_kg  DECIMAL(10,6) NOT NULL,  -- emissions_co2e du trips.json
+    empreinte_avion_kg  DECIMAL(10,6),           -- distance × 0.158 (ADEME/BEIS)
+    distance_km         DECIMAL(10,3),           -- distance du trips.json
+    trajet_id           VARCHAR(50)   NOT NULL,
+    FOREIGN KEY (trajet_id) REFERENCES trajet(trajet_id)
 );
 
 -- 10. exploite
@@ -131,4 +133,3 @@ CREATE TABLE utilisation (
     FOREIGN KEY (code_operateur) REFERENCES operateur(code_operateur),
     FOREIGN KEY (id_type_train)  REFERENCES type_train(id_type_train)
 );
-
