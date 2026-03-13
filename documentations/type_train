@@ -1,0 +1,16 @@
+| Type     | Signification                  |
+| -------- | ------------------------------ |
+| IC       | InterCity                      |
+| EC       | EuroCity                       |
+| EN       | EuroNight                      |
+| NJ       | Nightjet                       |
+| IC Nuit  | InterCity de nuit              |
+| IC Notte | InterCity nuit (Italie)        |
+| Sleeper  | Train avec wagons-lits         |
+| Natt     | Train de nuit nordique         |
+| IR       | InterRegio                     |
+| R        | Regional                       |
+| P        | Train local                    |
+| D        | Train direct                   |
+| TLK      | Train longue distance polonais |
+| F        | Fast train                     |

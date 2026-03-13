@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:TalendMetadata="http://www.talend.org/metadata/connection/2010" xmlns:orgomg.cwm.resource.relational="http:///orgomg/cwm/resource/relational.ecore">
+  <TalendMetadata:DatabaseConnection xmi:id="_gwFD4BW4EfGpwMshHSrcjA" name="mspr" id="_W7x4QBW4EfGpwMshHSrcjA" label="mspr" dataPackage="_gxWPMBW4EfGpwMshHSrcjA" DatabaseType="PostgreSQL" DriverClass="org.postgresql.Driver" URL="jdbc:postgresql://localhost:5432/mspr2?" dbVersionString="V9_X" Port="5432" Username="postgres" Password="enc:system.encryption.key.v1:f06Uyo2BAY1uIQRcBmmihYvXPXC3A8GPoJEcqNVP5Oe45QdfdFRcnhQ=" ServerName="localhost" DatasourceName="" FileFieldName="" SID="mspr2" SqlSynthax="" StringQuote="" NullChar="" DbmsId="postgres_id" ProductId="POSTGRESQL" AdditionalParams="" StandardSQL="true" SQLMode="false" UiSchema="public">
+    <taggedValue xmi:id="_gwFq8BW4EfGpwMshHSrcjA" tag="Is Conn Need Reload" value="false"/>
+    <taggedValue xmi:id="_gwZ0ABW4EfGpwMshHSrcjA" tag="package filter" value=""/>
+    <taggedValue xmi:id="_gwjlABW4EfGpwMshHSrcjA" tag="Status" value=""/>
+    <taggedValue xmi:id="_gwjlARW4EfGpwMshHSrcjA" tag="Version" value="0.1"/>
+    <taggedValue xmi:id="_gwjlAhW4EfGpwMshHSrcjA" tag="Purpose" value=""/>
+    <taggedValue xmi:id="_gwjlAxW4EfGpwMshHSrcjA" tag="Description" value=""/>
+    <taggedValue xmi:id="_gwjlBBW4EfGpwMshHSrcjA" tag="Author" value=""/>
+    <taggedValue xmi:id="_gwjlBRW4EfGpwMshHSrcjA" tag="otherParameter"/>
+    <taggedValue xmi:id="_gw6KUBW4EfGpwMshHSrcjA" tag="DB ProductName" value="PostgreSQL"/>
+    <taggedValue xmi:id="_gw6KURW4EfGpwMshHSrcjA" tag="DB ProductVersion" value="18.1"/>
+    <taggedValue xmi:id="_gw6KUhW4EfGpwMshHSrcjA" tag="DB IdentifierQuoteString" value="&quot;"/>
+    <parameters xmi:id="_gwFq8RW4EfGpwMshHSrcjA" key="CONN_PARA_KEY_USERNAME" value="postgres"/>
+  </TalendMetadata:DatabaseConnection>
+  <orgomg.cwm.resource.relational:Catalog xmi:id="_gxWPMBW4EfGpwMshHSrcjA" name="mspr2" dataManager="_gwFD4BW4EfGpwMshHSrcjA">
+    <ownedElement xsi:type="orgomg.cwm.resource.relational:Schema" xmi:id="_gxXdUBW4EfGpwMshHSrcjA" name="public"/>
+  </orgomg.cwm.resource.relational:Catalog>
+</xmi:XMI>

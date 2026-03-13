@@ -31,7 +31,7 @@ git checkout  joseph
 git branch
 git status
 git add .
-git commit -m "Maj Mc"
+git commit -m "Maj Mcd et documentation changement de la bdd et redisposition des fichiers"
 git push --set-upstream origin joseph  
 
 

@@ -133,3 +133,6 @@ CREATE TABLE utilisation (
     FOREIGN KEY (code_operateur) REFERENCES operateur(code_operateur),
     FOREIGN KEY (id_type_train)  REFERENCES type_train(id_type_train)
 );
+
+-- pour creer un dump 
+-- pg_dump -U postgres -d mspr2 -F p -f "C:\Users\josep\Mspr2\MSPR\MCD_et_BDD\remplissage.sql"
