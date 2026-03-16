@@ -12,7 +12,7 @@ def get_trajets():
 
 
 @router.get("/{trajet_id}", response_model=TrajetResponse)
-def get_trajet(trajet_id: int):
+def get_trajet(trajet_id: str):
     trajet = trajet_service.get_trajet_by_id(trajet_id)
     if not trajet:
         raise HTTPException(status_code=404, detail="Trajet not found")

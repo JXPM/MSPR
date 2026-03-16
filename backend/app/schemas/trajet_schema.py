@@ -1,18 +1,16 @@
 from pydantic import BaseModel
-from datetime import time
-from typing import Optional
+
 
 class TrajetBase(BaseModel):
-    ligne_id: int
+    id_ligne: int
     gare_depart: str
     gare_arrivee: str
-    heure_depart: time
-    heure_arrivee: time
-    type_train_id: int
+    heure_depart: str
+    heure_arrivee: str
 
 
 class TrajetResponse(TrajetBase):
-    trajet_id: int
+    trajet_id: str
 
     class Config:
         from_attributes = True

@@ -6,7 +6,7 @@ class Gare(Base):
     __tablename__ = "gare"
 
     code_uic = Column(String, primary_key=True)
-    gare_nom = Column(String, nullable=False)
+    nom_gare = Column(String, nullable=False)
     longitude = Column(Float)
     latitude = Column(Float)
     iso_pays = Column(String, ForeignKey("pays.iso_pays"))

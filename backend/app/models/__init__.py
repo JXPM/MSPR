@@ -6,4 +6,3 @@ from .type_train import TypeTrain
 from .trajet import Trajet
 from .itineraire import Itineraire
 from .emission import Emission
-from .source import Source

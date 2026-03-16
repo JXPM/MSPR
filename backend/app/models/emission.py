@@ -6,8 +6,6 @@ class Emission(Base):
 
     id_emission = Column(Integer, primary_key=True)
     transporteur = Column(String)
-    origine = Column(String)
-    destination = Column(String)
 
     distance_train_km = Column(Float)
     empreinte_train_kg = Column(Float)
