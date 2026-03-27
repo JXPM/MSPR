@@ -535,9 +535,10 @@ Certification Professionnelle Développeur en Intelligence Artificielle et Data 
 
 | Membre | Rôle principal |
 |---|---|
-| **Kouamé Johan BILÉ** | API REST FastAPI, Dashboard Streamlit, ETL |
-| **Joseph HACCANDY** | ETL Talend, Modélisation BDD, Sources de données |
+| **Kouamé Johan BILÉ** | API REST FastAPI, Dashboard Streamlit, Documentation, Conformité RGPD |
+| **Joseph HACCANDY** | ETL Talend, Modélisation BDD, Sources de données, Documentation |
 | **Glody KUTUMBAKANA** | ETL Talend, Modélisation BDD, Documentation |
+| **Nabil DIA** | API REST FastAPI, Dashboard Streamlit |
 
 ---
 

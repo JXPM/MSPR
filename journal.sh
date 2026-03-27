@@ -31,7 +31,7 @@ git checkout  joseph
 git branch
 git status
 git add .
-git commit -m "ajout des services et des routes"
+git commit -m "ajout du dashboard & documentation"
 git push --set-upstream origin api
 
 
