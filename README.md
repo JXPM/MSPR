@@ -74,7 +74,7 @@ Le MCD a été conçu afin de garantir :
 - Une compatibilité avec des flux multi-sources
 - Une évolutivité vers des analyses avancées et modèles IA
 
-![MCDFinal](MCD_et_BDD/MCDFinal.jpg)
+![MCDFinal](MCDFinal_v2.jpg)
 
 ---
 
