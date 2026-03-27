@@ -1,17 +1,15 @@
-from sqlalchemy import Column, Integer, ForeignKey, String, Time
+from sqlalchemy import Column, Integer, ForeignKey, String
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 class Itineraire(Base):
     __tablename__ = "itineraire"
 
+    # Schéma réel DB:
+    # PRIMARY KEY (trajet_id, id_itineraire)
+    trajet_id = Column(String(50), ForeignKey("trajet.trajet_id"), primary_key=True)
     id_itineraire = Column(Integer, primary_key=True)
-    ordre_passage = Column(Integer)
-
-    heure_depart = Column(Time)
-    heure_arrivee = Column(Time)
-
-    trajet_id = Column(Integer, ForeignKey("trajet.trajet_id"))
+    chemin = Column(String(1000))
     code_uic = Column(String, ForeignKey("gare.code_uic"))
 
     trajet = relationship("Trajet", back_populates="itineraires")
