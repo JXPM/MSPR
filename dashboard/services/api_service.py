@@ -31,23 +31,27 @@ def get_lignes_count():
     response = requests.get(f"{API_URL}/stats/lignes/count")
     return response.json()
 
+
+def get_pays_count():
+    response = requests.get(f"{API_URL}/stats/pays/count")
+    return response.json()
+
+
 def get_emissions():
     response = requests.get(f"{API_URL}/stats/emissions")
     return response.json()
 
+
 def get_operateurs():
-
     response = requests.get(f"{API_URL}/stats/operateurs")
-
     if response.status_code != 200:
         return []
-
     try:
         return response.json()
-    except:
+    except Exception:
         return []
-    
-    
+
+
 def get_trajets_map():
     response = requests.get(f"{API_URL}/stats/trajets/map")
     if response.status_code != 200:

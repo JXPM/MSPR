@@ -7,6 +7,7 @@ from services.api_service import (
     get_gares,
     get_emissions,
     get_operateurs,
+    get_pays_count,
     get_trajets_count,
     get_gares_count,
     get_lignes_count,
@@ -20,13 +21,10 @@ from components.map import railway_map
 def icon_svg(name: str, color: str = "#c8d3e8", size: int = 20) -> str:
     paths = {
         "menu": '<line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line>',
-        # Front-train icon style (closer to user reference)
         "train": '<line x1="8" y1="3" x2="16" y2="3"></line><line x1="12" y1="3" x2="12" y2="1.8"></line><path d="M6 5h12a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a2 2 0 0 1 2-2z"></path><line x1="8" y1="9" x2="10.7" y2="9"></line><line x1="13.3" y1="9" x2="16" y2="9"></line><circle cx="8" cy="14.2" r="1.2"></circle><circle cx="16" cy="14.2" r="1.2"></circle><line x1="7" y1="19" x2="5" y2="22"></line><line x1="17" y1="19" x2="19" y2="22"></line><line x1="8.5" y1="20.5" x2="15.5" y2="20.5"></line>',
         "business": '<rect x="4" y="5" width="7" height="15" rx="1"></rect><rect x="13" y="3" width="7" height="17" rx="1"></rect><line x1="6" y1="8" x2="9" y2="8"></line><line x1="6" y1="11" x2="9" y2="11"></line><line x1="15" y1="6" x2="18" y2="6"></line><line x1="15" y1="9" x2="18" y2="9"></line>',
         "route": '<circle cx="5" cy="18" r="2"></circle><circle cx="12" cy="6" r="2"></circle><circle cx="19" cy="18" r="2"></circle><path d="M6.5 16.5 L10.5 8.2 L17.5 16.5"></path>',
-        # World-map icon style
         "globe": '<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M6.5 10.2l1.8-.9 1.4.8 1.2-.5 1.5 1.2-.6 1.4-1.8.7-.8 1.5-2.1-.3-1.1-1.4z"></path><path d="M13.5 9.8l1.6-.8 1.6.6 1.1 1.5-.6 1.7-1.8.6-1.6-.6-.8-1.5z"></path>',
-        # Flag icon for country KPI
         "flag": '<line x1="6" y1="3" x2="6" y2="21"></line><path d="M6 4h11l-2.3 3L17 10H6z"></path>',
         "place": '<path d="M12 21s-6-5-6-10a6 6 0 0 1 12 0c0 5-6 10-6 10z"></path><circle cx="12" cy="11" r="2"></circle>',
         "flight": '<path d="M3 13l8-2 8-7 2 2-7 8-2 8-2-2 2-7-7 0z"></path>',
@@ -63,6 +61,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ══════════════════════════════════════════════════════════════
+# INITIALISATION SESSION STATE POUR LA SIDEBAR
+# ══════════════════════════════════════════════════════════════
+
+if "sidebar_open" not in st.session_state:
+    st.session_state.sidebar_open = True
+
+sidebar_class = "sidebar-visible" if st.session_state.sidebar_open else "sidebar-hidden"
+
+st.markdown(f"""
+<div class="{sidebar_class}">
+</div>
+""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # NAVIGATION STATE
@@ -75,100 +86,129 @@ if "page" not in st.session_state:
 
 
 # ══════════════════════════════════════════════════════════════
-# GLOBAL STYLES — st.html() required in Streamlit 1.32+
-# (st.markdown strips <style> tags since 1.32)
+# GLOBAL STYLES + SIDEBAR TOGGLE CSS
 # ══════════════════════════════════════════════════════════════
 
 st.html("""
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { box-sizing: border-box; }
-html, body,
-[data-testid="stAppViewContainer"],
-[data-testid="stApp"] {
-    background: #080c14 !important;
-    font-family: 'DM Sans', sans-serif;
-    color: #c8d3e8;
-}
-#MainMenu, footer, header,
-[data-testid="stToolbar"],
-[data-testid="stDecoration"] { display: none !important; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stApp"] {
+        background: #080c14 !important;
+        font-family: 'DM Sans', sans-serif;
+        color: #c8d3e8;
+    }
 
-[data-testid="stSidebar"] {
-    background: #0b1018 !important;
-    border-right: 1px solid rgba(255,255,255,0.05) !important;
-    min-width: 220px !important;
-    max-width: 220px !important;
-}
-[data-testid="stSidebar"] > div:first-child { padding: 0 !important; }
-[data-testid="stMainBlockContainer"] {
-    padding: 0 1.5rem 1.5rem !important;
-    max-width: 100% !important;
-}
-.block-container { padding-top: 0 !important; }
+    /* Masquage des éléments Streamlit par défaut */
+    #MainMenu, footer, header,
+    [data-testid="stDecoration"] { display: none !important; }
 
-.kpi-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 14px;
-}
-.kpi-card {
-    background: #0d1422;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 12px;
-    padding: 13px 15px;
-    display: flex; align-items: center; gap: 13px;
-    transition: border-color .2s, transform .2s;
-}
-.kpi-card:hover { border-color: rgba(16,185,129,.3); transform: translateY(-1px); }
-.kpi-icon-box {
-    width: 44px; height: 44px; border-radius: 11px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.kpi-body { flex: 1; min-width: 0; }
-.kpi-label {
-    font-size:.62rem; font-weight:600; color:#4b5875;
-    text-transform:uppercase; letter-spacing:.1em; margin-bottom:1px;
-}
-.kpi-value {
-    font-size:1.55rem; font-weight:700; color:#f0f4ff;
-    letter-spacing:-.04em; font-family:'DM Mono',monospace; line-height:1.1;
-}
-.kpi-delta-up   { font-size:.65rem; font-weight:500; color:#10b981; margin-top:2px; }
-.kpi-delta-mute { font-size:.65rem; font-weight:500; color:#4b5875;  margin-top:2px; }
+    /* Styles Sidebar */
+    [data-testid="stSidebar"] {
+        background: #0b1018 !important;
+        border-right: 1px solid rgba(255,255,255,0.05) !important;
+        min-width: 220px !important;
+        max-width: 220px !important;
+        transition: margin-left 0.3s ease;
+    }
+    [data-testid="stSidebar"] > div:first-child { padding: 0 !important; }
 
-.chart-header {
-    display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;
-}
-.chart-title {
-    font-size:.72rem; font-weight:600; color:#c8d3e8;
-    text-transform:uppercase; letter-spacing:.08em;
-}
-.dots { display:flex; gap:3px; align-items:center; }
-.dots span { width:4px; height:4px; border-radius:50%; background:#2e3d52; }
+    [data-testid="stMainBlockContainer"] {
+        padding: 0 1.5rem 1.5rem !important;
+        max-width: 100% !important;
+    }
+    .block-container { padding-top: 0 !important; }
 
-[data-testid="stPlotlyChart"] > div { border-radius: 8px; overflow: hidden; }
-div[data-testid="stPlotlyChart"] { margin: 0 !important; }
+    /* Toggle Sidebar */
+    .sidebar-hidden [data-testid="stSidebar"] {
+        margin-left: -220px !important;
+    }
+    .sidebar-visible [data-testid="stSidebar"] {
+        margin-left: 0px !important;
+    }
 
-[data-testid="stSidebar"] .stButton > button {
-    background: transparent !important; border: none !important;
-    border-radius: 8px !important; color: #8492a6 !important;
-    font-size: .85rem !important; font-weight: 500 !important;
-    text-align: left !important; width: 100% !important;
-    padding: 9px 14px !important;
-    transition: background .15s, color .15s !important; box-shadow: none !important;
-}
-[data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(255,255,255,.05) !important; color: #c8d3e8 !important;
-}
-[data-testid="stSlider"] { padding: 0 4px; }
+    /* Topbar */
+    .topbar {
+        display:flex; 
+        align-items:center; 
+        padding:13px 0;
+        border-bottom:1px solid rgba(255,255,255,0.05); 
+        margin-bottom:14px;
+    }
 
-/* page header bar */
-.topbar {
-    display:flex; align-items:center; padding:13px 0;
-    border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:14px;
-}
+    .topbar button {
+        background: transparent !important;
+        border: none !important;
+        font-size: 1.4rem !important;
+        cursor: pointer;
+        padding: 4px 8px;
+        margin-right: 8px;
+        color: #4b5875;
+        transition: color 0.2s;
+    }
+    .topbar button:hover {
+        color: #c8d3e8;
+    }
+
+    /* Autres styles existants */
+    .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+    .kpi-card {
+        background: #0d1422;
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 13px 15px;
+        display: flex; align-items: center; gap: 13px;
+        transition: border-color .2s, transform .2s;
+    }
+    .kpi-card:hover { border-color: rgba(16,185,129,.3); transform: translateY(-1px); }
+    .kpi-icon-box {
+        width: 44px; height: 44px; border-radius: 11px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .kpi-body { flex: 1; min-width: 0; }
+    .kpi-label {
+        font-size:.62rem; font-weight:600; color:#4b5875;
+        text-transform:uppercase; letter-spacing:.1em; margin-bottom:1px;
+    }
+    .kpi-value {
+        font-size:1.55rem; font-weight:700; color:#f0f4ff;
+        letter-spacing:-.04em; font-family:'DM Mono',monospace; line-height:1.1;
+    }
+    .kpi-delta-up   { font-size:.65rem; font-weight:500; color:#10b981; margin-top:2px; }
+    .kpi-delta-mute { font-size:.65rem; font-weight:500; color:#4b5875;  margin-top:2px; }
+
+    .chart-header {
+        display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;
+    }
+    .chart-title {
+        font-size:.72rem; font-weight:600; color:#c8d3e8;
+        text-transform:uppercase; letter-spacing:.08em;
+    }
+    .dots { display:flex; gap:3px; align-items:center; }
+    .dots span { width:4px; height:4px; border-radius:50%; background:#2e3d52; }
+
+    [data-testid="stPlotlyChart"] > div { border-radius: 8px; overflow: hidden; }
+    div[data-testid="stPlotlyChart"] { margin: 0 !important; }
+
+    [data-testid="stSidebar"] .stButton > button {
+        background: transparent !important; border: none !important;
+        border-radius: 8px !important; color: #8492a6 !important;
+        font-size: .85rem !important; font-weight: 500 !important;
+        text-align: left !important; width: 100% !important;
+        padding: 9px 14px !important;
+        transition: background .15s, color .15s !important; box-shadow: none !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255,255,255,.05) !important; color: #c8d3e8 !important;
+    }
+    [data-testid="stSlider"] { padding: 0 4px; }
 </style>
 """)
 
@@ -183,7 +223,10 @@ def load_stats():
         get_trajets_count()["total_trajets"],
         get_gares_count()["total_gares"],
         get_lignes_count()["total_lignes"],
+        get_pays_count()["total_pays"],
     )
+
+trajets, gares, lignes, nb_pays = load_stats()
 
 @st.cache_data
 def load_gares():        return pd.DataFrame(get_gares())
@@ -196,7 +239,6 @@ def load_trajets_map():  return pd.DataFrame(get_trajets_map())
 @st.cache_data
 def load_trajets_type(): return get_trajets_type()
 
-trajets, gares, lignes = load_stats()
 df_gares      = load_gares()
 df_trajets    = load_trajets_map()
 emissions     = load_emissions()
@@ -271,7 +313,29 @@ with st.sidebar:
         )
 
 
-current_page   = st.session_state.page
+# ══════════════════════════════════════════════════════════════
+# TOPBAR AVEC BOUTON ☰ FONCTIONNEL
+# ══════════════════════════════════════════════════════════════
+
+def topbar(subtitle: str):
+    col_btn, col_title = st.columns([0.1, 0.9], gap="small")
+    
+    with col_btn:
+        if st.button("☰", key="toggle_sidebar", help="Ouvrir/Fermer la sidebar"):
+            st.session_state.sidebar_open = not st.session_state.sidebar_open
+            st.rerun()
+
+    with col_title:
+        st.html(f"""
+        <div class="topbar">
+            <span style="font-size:.95rem;font-weight:600;color:#c8d3e8;">ObRail Europe</span>
+            <span style="color:#2e3d52;margin:0 6px;">—</span>
+            <span style="font-size:.95rem;font-weight:400;color:#4b5875;">{subtitle}</span>
+        </div>
+        """)
+
+
+current_page = st.session_state.page
 
 if selected_countries and "iso_pays" in df_gares.columns:
     df_map_base = df_gares[df_gares["iso_pays"].isin(selected_countries)].copy()
@@ -283,22 +347,6 @@ df_map = df_map_base.sample(target_count, random_state=42) if target_count > 0 e
 
 df_trajets_map = df_trajets.sample(1000, random_state=42) if len(df_trajets) > 1000 else df_trajets
 
-
-# ══════════════════════════════════════════════════════════════
-# HELPER — topbar
-# ══════════════════════════════════════════════════════════════
-
-def topbar(subtitle: str):
-    st.html(f"""
-    <div class="topbar">
-        <span style="margin-right:12px;">{icon_svg("menu", "#4b5875", 18)}</span>
-        <span style="font-size:.95rem;font-weight:600;color:#c8d3e8;">ObRail Europe</span>
-        <span style="color:#2e3d52;margin:0 6px;">—</span>
-        <span style="font-size:.95rem;font-weight:400;color:#4b5875;">{subtitle}</span>
-    </div>
-    """)
-
-
 # ══════════════════════════════════════════════════════════════
 # PAGE: APERÇU
 # ══════════════════════════════════════════════════════════════
@@ -307,7 +355,6 @@ if current_page == "Aperçu":
 
     topbar("Railway Data Dashboard")
 
-    # ── KPI row ───────────────────────────────────────────────
     st.html(f"""
     <div class="kpi-row">
         <div class="kpi-card">
@@ -317,7 +364,6 @@ if current_page == "Aperçu":
             <div class="kpi-body">
                 <div class="kpi-label">Trajets</div>
                 <div class="kpi-value">{trajets:,}</div>
-                <div class="kpi-delta-up">↑ +12% ce mois</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -346,14 +392,13 @@ if current_page == "Aperçu":
             </div>
             <div class="kpi-body">
                 <div class="kpi-label">Pays couverts</div>
-                <div class="kpi-value">24</div>
+                <div class="kpi-value">{nb_pays}</div>
                 <div class="kpi-delta-mute">Europe entière</div>
             </div>
         </div>
     </div>
     """)
 
-    # ── Main grid ─────────────────────────────────────────────
     col_left, col_right = st.columns([1, 1.65], gap="small")
 
     with col_left:
@@ -497,7 +542,7 @@ elif current_page == "Réseau":
             </div>
             <div class="kpi-body">
                 <div class="kpi-label">Gares référencées</div>
-                <div class="kpi-value" id="nb-gares">—</div>
+                <div class="kpi-value">—</div>
                 <div class="kpi-delta-mute">Coordonnées GPS</div>
             </div>
         </div>
@@ -517,7 +562,7 @@ elif current_page == "Réseau":
             </div>
             <div class="kpi-body">
                 <div class="kpi-label">Pays couverts</div>
-                <div class="kpi-value">24</div>
+                <div class="kpi-value">{nb_pays}</div>
                 <div class="kpi-delta-mute">Europe entière</div>
             </div>
         </div>
@@ -862,7 +907,7 @@ elif current_page == "Qualité des Données":
 
     df_with_coords    = df_gares.dropna(subset=["latitude", "longitude"])
     df_without_coords = df_gares[df_gares["latitude"].isna() | df_gares["longitude"].isna()]
-    pct_with = round(len(df_with_coords) / len(df_gares) * 100, 1) if len(df_gares) > 0 else 0
+    pct_with    = round(len(df_with_coords) / len(df_gares) * 100, 1) if len(df_gares) > 0 else 0
     pct_without = round(100 - pct_with, 1)
 
     col_c, col_d = st.columns([2, 1], gap="small")
