@@ -15,6 +15,7 @@ DROP TABLE IF EXISTS source CASCADE;
 DROP TABLE IF EXISTS gare CASCADE;
 DROP TABLE IF EXISTS operateur CASCADE;
 DROP TABLE IF EXISTS pays CASCADE;
+DROP TABLE IF EXISTS utilisation CASCADE;
 
 -- =====================================================
 -- CRÉATION DES TABLES
@@ -26,10 +27,7 @@ CREATE TABLE pays (
     nom_pays VARCHAR(100)
 );
 
--- Pays hors Europe nécessaires pour les opérateurs
-INSERT INTO pays (iso_pays, nom_pays) VALUES
-    ('US', 'United States of America'),
-    ('MA', 'Morocco');
+
 
 -- 2. operateur
 CREATE TABLE operateur (
@@ -133,6 +131,7 @@ CREATE TABLE utilisation (
     FOREIGN KEY (code_operateur) REFERENCES operateur(code_operateur),
     FOREIGN KEY (id_type_train)  REFERENCES type_train(id_type_train)
 );
+
 
 -- pour creer un dump 
 -- pg_dump -U postgres -d mspr2 -F p -f "C:\Users\josep\Mspr2\MSPR\MCD_et_BDD\remplissage.sql"

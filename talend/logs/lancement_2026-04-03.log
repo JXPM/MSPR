@@ -1,0 +1,105 @@
+============================================================ 
+ DEBUT LANCEMENT COMPLET - 03/04/2026  1:31:14,24 
+============================================================ 
+[ETAPE 1/3] Correction encodage -  1:31:14,29 
+  [OK] pays_run.bat modifie 
+  [OK] gare_run.bat modifie 
+  [OK] operateur_run.bat modifie 
+  [OK] type_train_run.bat modifie 
+  [OK] ligne_run.bat modifie 
+  [OK] trajet_run.bat modifie 
+  [OK] exploite_run.bat modifie 
+  [OK] itineraire_run.bat modifie 
+  [OK] emission_run.bat modifie 
+[OK] Correction encodage terminee -  1:31:16,97 
+ 
+[ETAPE 2/3] Nettoyage base -  1:31:17,02 
+SET
+  Nettoyage de la table emission... 
+TRUNCATE TABLE
+  Nettoyage de la table itineraire... 
+TRUNCATE TABLE
+  Nettoyage de la table exploite... 
+TRUNCATE TABLE
+  Nettoyage de la table trajet... 
+NOTICE:  truncate cascades to table "itineraire"
+NOTICE:  truncate cascades to table "emission"
+TRUNCATE TABLE
+  Nettoyage de la table ligne... 
+NOTICE:  truncate cascades to table "trajet"
+NOTICE:  truncate cascades to table "exploite"
+NOTICE:  truncate cascades to table "itineraire"
+NOTICE:  truncate cascades to table "emission"
+TRUNCATE TABLE
+  Nettoyage de la table type_train... 
+NOTICE:  truncate cascades to table "utilisation"
+TRUNCATE TABLE
+  Nettoyage de la table operateur... 
+NOTICE:  truncate cascades to table "exploite"
+NOTICE:  truncate cascades to table "utilisation"
+TRUNCATE TABLE
+  Nettoyage de la table gare... 
+NOTICE:  truncate cascades to table "itineraire"
+TRUNCATE TABLE
+  Nettoyage de la table pays... 
+NOTICE:  truncate cascades to table "operateur"
+NOTICE:  truncate cascades to table "gare"
+NOTICE:  truncate cascades to table "itineraire"
+NOTICE:  truncate cascades to table "exploite"
+NOTICE:  truncate cascades to table "utilisation"
+TRUNCATE TABLE
+SET
+[OK] Nettoyage termine -  1:31:18,66 
+ 
+[ETAPE 3/3] Lancement jobs ETL -  1:31:18,71 
+------------------------------------------------------ 
+ Job : pays - Debut :  1:31:18,76 
+C:\Users\josep\Mspr2\MSPR\données\lists_of_iso_3166.csv (Le chemin d’accès spécifié est introuvable)
+C:\Users\josep\Mspr2\MSPR\données\stations.csv (Le chemin d’accès spécifié est introuvable)
+ Job pays OK - Fin :  1:31:20,15 
+------------------------------------------------------ 
+ Job : gare - Debut :  1:31:20,19 
+C:\Users\josep\Mspr2\MSPR\données\stations.csv (Le chemin d’accès spécifié est introuvable)
+ Job gare OK - Fin :  1:31:21,22 
+------------------------------------------------------ 
+ Job : operateur - Debut :  1:31:21,25 
+java.io.FileNotFoundException: File 'C:\Users\josep\Mspr2\MSPR\données\nigth\agencies.json' does not exist
+ Job operateur OK - Fin :  1:31:22,17 
+------------------------------------------------------ 
+ Job : type_train - Debut :  1:31:22,22 
+java.io.FileNotFoundException: File 'C:\Users\josep\Mspr2\MSPR\données\nigth\trips.json' does not exist
+ Job type_train OK - Fin :  1:31:23,13 
+------------------------------------------------------ 
+ Job : ligne - Debut :  1:31:23,18 
+java.io.FileNotFoundException: File 'C:\Users\josep\Mspr2\MSPR\données\nigth\routes.json' does not exist
+ Job ligne OK - Fin :  1:31:24,11 
+------------------------------------------------------ 
+ Job : trajet - Debut :  1:31:24,15 
+java.io.FileNotFoundException: File 'C:\Users\josep\Mspr2\MSPR\données\nigth\trips.json' does not exist
+ Job trajet OK - Fin :  1:31:25,03 
+------------------------------------------------------ 
+ Job : exploite - Debut :  1:31:25,07 
+java.io.FileNotFoundException: File 'C:\Users\josep\Mspr2\MSPR\données\nigth\routes.json' does not exist
+ Job exploite OK - Fin :  1:31:26,00 
+------------------------------------------------------ 
+ Job : itineraire - Debut :  1:31:26,05 
+Exception in component tFileInputDelimited_1 (itineraire)
+java.io.FileNotFoundException: C:\Users\josep\Mspr2\MSPR\données\stations.csv (Le chemin d’accès spécifié est introuvable)
+	at java.io.FileInputStream.open0(Native Method)
+	at java.io.FileInputStream.open(Unknown Source)
+	at java.io.FileInputStream.<init>(Unknown Source)
+	at java.io.FileInputStream.<init>(Unknown Source)
+	at org.talend.fileprocess.TOSDelimitedReader.<init>(TOSDelimitedReader.java:88)
+	at org.talend.fileprocess.FileInputDelimited.<init>(FileInputDelimited.java:164)
+	at mspr2.itineraire_0_1.itineraire.tFileInputDelimited_1Process(itineraire.java:5015)
+	at mspr2.itineraire_0_1.itineraire.tFileInputRaw_1Process(itineraire.java:1441)
+	at mspr2.itineraire_0_1.itineraire.runJobInTOS(itineraire.java:6760)
+	at mspr2.itineraire_0_1.itineraire.main(itineraire.java:6601)
+ Job itineraire ECHEC - code 1 -  1:31:27,07 
+------------------------------------------------------ 
+ Job : emission - Debut :  1:31:27,12 
+java.io.FileNotFoundException: File 'C:\Users\josep\Mspr2\MSPR\données\nigth\trips.json' does not exist
+ Job emission OK - Fin :  1:31:28,09 
+============================================================ 
+ PROCESSUS COMPLET TERMINE AVEC SUCCES - 03/04/2026  1:31:28,14 
+============================================================ 

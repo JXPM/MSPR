@@ -1,9 +1,9 @@
 -- activation pour windows
 
-cd C:\Users\josep\Mspr2\MSPR\talend
-run_etl.bat
+cd C:\Users\josep\Mspr2\MSPR\talend\lancement
+lancement.bat
 
-activation pour linux
+-- activation pour linux
 
-cd /home/josep/Mspr2/MSPR/talend
-./run_etl.sh
+cd /opt/obRail/talend/lancement
+./lancement.sh

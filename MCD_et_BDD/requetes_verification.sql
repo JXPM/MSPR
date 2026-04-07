@@ -1,6 +1,7 @@
 
 -- TESTS DE COHÉRENCE  
 
+
 -- 1. Y a-t-il des trajets qui ne sont liés à aucune ligne ?
 SELECT t.trajet_id
 FROM trajet t
@@ -87,3 +88,7 @@ SUM(empreinte_train_kg) AS total_co2_train,
 SUM(empreinte_avion_kg) AS total_co2_avion,
 SUM(empreinte_avion_kg) - SUM(empreinte_train_kg) AS economie_co2
 FROM emission;
+
+
+SELECT * FROM emission;
+SELECT * FROM

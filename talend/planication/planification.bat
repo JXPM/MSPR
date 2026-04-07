@@ -9,7 +9,7 @@ setlocal enabledelayedexpansion
 
 :: --- CONFIGURATION ---
 set TASK_NAME=ObRail_ETL_Mensuel
-set ETL_SCRIPT=C:\Users\josep\Mspr2\MSPR\talend\run_etl.bat
+set ETL_SCRIPT=C:\Users\josep\Mspr2\MSPR\talend\lancement\lancement.bat
 set LOG_DIR=C:\Users\josep\Mspr2\MSPR\talend\logs
 :: ---------------------
 
@@ -30,7 +30,7 @@ if %errorlevel% neq 0 (
 
 echo [INFO] Droits administrateur confirmes.
 
-:: Verifier que run_etl.bat existe
+:: Verifier que lancement.bat existe
 if not exist "%ETL_SCRIPT%" (
     echo [ERREUR] Fichier introuvable : %ETL_SCRIPT%
     echo [ERREUR] Verifiez le chemin dans la section CONFIGURATION de ce script.

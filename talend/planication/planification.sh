@@ -2,13 +2,13 @@
 # ============================================================
 #  ObRail Europe - Installation de la planification mensuelle
 #  Equivalent de installer_tache_planifiee.bat pour Linux
-#  Configure le cron pour lancer run_etl.sh le 1er du mois
+#  Configure le cron pour lancer lancement.sh le 1er du mois
 #  DOIT ETRE EXECUTE EN TANT QUE ROOT (une seule fois)
 # ============================================================
 
 # --- CONFIGURATION ---
-ETL_SCRIPT="/opt/obRail/talend/run_etl.sh"
-LOG_DIR="/var/log/obRail"
+ETL_SCRIPT="/opt/obRail/talend/lancement/lancement.sh"
+LOG_DIR="/opt/obRail/talend/logs"
 CRON_LOG="$LOG_DIR/cron.log"
 CRON_LINE="0 2 1 * * $ETL_SCRIPT >> $CRON_LOG 2>&1"
 # ---------------------
@@ -28,7 +28,7 @@ fi
 
 echo "[INFO] Droits root confirmes."
 
-# Verifier que run_etl.sh existe
+# Verifier que lancement.sh existe
 if [ ! -f "$ETL_SCRIPT" ]; then
     echo "[ERREUR] Fichier introuvable : $ETL_SCRIPT"
     echo "[ERREUR] Verifiez le chemin dans la section CONFIGURATION de ce script."
@@ -37,7 +37,7 @@ fi
 
 echo "[INFO] Script ETL trouve : $ETL_SCRIPT"
 
-# Rendre run_etl.sh executable si besoin
+# Rendre lancement.sh executable si besoin
 chmod +x "$ETL_SCRIPT"
 echo "[INFO] Permissions d'execution confirmees sur $ETL_SCRIPT"
 

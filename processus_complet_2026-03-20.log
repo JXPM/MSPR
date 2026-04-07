@@ -1,0 +1,22 @@
+=================================================== 
+Debut du processus complet - 20/03/2026  9:44:46,79 
+=================================================== 
+ 
+[ETAPE 1/2] Lancement de fix_encoding.bat -  9:44:46,84 
+[OK] Correction d'encodage reussie -  9:44:52,81 
+[ETAPE 2/2] Lancement de run_etl.bat -  9:44:52,81 
+[OK] Pipeline ETL reussi -  9:45:06,96 
+=================================================== 
+PROCESSUS COMPLET TERMINE AVEC SUCCES -  9:45:06,99 
+=================================================== 
+=================================================== 
+Debut du processus complet - 20/03/2026 10:21:08,86 
+=================================================== 
+ 
+[ETAPE 1/2] Lancement de fix_encoding.bat - 10:21:08,92 
+[OK] Correction d'encodage reussie - 10:21:17,36 
+[ETAPE 2/2] Lancement de run_etl.bat - 10:21:17,37 
+[OK] Pipeline ETL reussi - 10:21:33,94 
+=================================================== 
+PROCESSUS COMPLET TERMINE AVEC SUCCES - 10:21:33,97 
+=================================================== 
