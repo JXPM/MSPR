@@ -73,8 +73,8 @@ def stats_operateurs(db: Session = Depends(get_db)):
             Operateur.nom_operateur,
             func.count(Trajet.trajet_id)
         )
-        .join(
-            Operateur,
+        .outerjoin(
+            Trajet,
             func.substring(Trajet.trajet_id, 1, 3) == Operateur.code_operateur
         )
         .group_by(Operateur.nom_operateur)

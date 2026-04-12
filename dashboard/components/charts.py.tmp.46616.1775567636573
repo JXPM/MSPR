@@ -157,6 +157,6 @@ def operateurs_chart(data: list):
             tickfont=dict(size=11, color="#c8d3e8"),
         ),
         margin=dict(l=10, r=16, t=36, b=10),
-        height=max(220, len(df) * 28),
+        height=220,
     )
     return fig

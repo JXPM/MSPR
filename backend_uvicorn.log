@@ -1,0 +1,20 @@
+INFO:     Started server process [33500]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50652 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57903 - "GET /stats/trajets/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61113 - "GET /stats/gares/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61114 - "GET /stats/lignes/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59735 - "GET /stats/trajets/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59736 - "GET /stats/gares/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59737 - "GET /stats/lignes/count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59738 - "GET /gares HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:59738 - "GET /gares/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52771 - "GET /stats/trajets/map HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50788 - "GET /stats/emissions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50789 - "GET /stats/operateurs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50790 - "GET /stats/trajets/type HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54319 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54320 - "GET /stats/operateurs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63478 - "GET /stats/operateurs HTTP/1.1" 200 OK
