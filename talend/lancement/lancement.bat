@@ -14,7 +14,7 @@ set PGSQL="C:\Program Files\PostgreSQL\18\bin\psql.exe"
 set PGDUMP="C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
 set DB_NAME=mspr2
 set DB_USER=postgres
-set DB_PASSWORD=girllikepro12
+set DB_PASSWORD="password"
 :: ---------------------
 
 :: Creer les dossiers necessaires s'ils n'existent pas
