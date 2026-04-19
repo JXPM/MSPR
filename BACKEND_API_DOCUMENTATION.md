@@ -72,7 +72,7 @@ DATABASE_URL=postgresql://postgres:<mot_de_passe>@localhost:5432/obrail
 ### 3.3 Lancement local
 
 ```bash
-cd /home/johan/MSPR/backend
+cd ./MSPR/backend
 source ../venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```

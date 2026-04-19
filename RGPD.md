@@ -17,7 +17,7 @@ Il couvre :
 
 Dans le cadre pedagogique MSPR, le traitement est realise pour le compte du projet ObRail Europe.
 
-- **Responsable de traitement (projet)** : Johan BILE, Joseph HACCANDY, Glody KUTUMBAKANA
+- **Responsable de traitement (projet)** : Johan BILE, Nabil DIA, Joseph HACCANDY, Glody KUTUMBAKANA
 - **Perimetre** : donnees ferroviaires open data (dessertes, gares, emissions, operateurs, lignes)
 - **Contexte** : projet de formation RNCP36581
 

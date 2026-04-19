@@ -7,8 +7,8 @@
 # ============================================================
 
 # --- CONFIGURATION ---
-ETL_SCRIPT="/opt/obRail/talend/lancement/lancement.sh"
-LOG_DIR="/opt/obRail/talend/logs"
+ETL_SCRIPT="./talend/lancement/lancement.sh"
+LOG_DIR="./talend/logs"
 CRON_LOG="$LOG_DIR/cron.log"
 CRON_LINE="0 2 1 * * $ETL_SCRIPT >> $CRON_LOG 2>&1"
 # ---------------------

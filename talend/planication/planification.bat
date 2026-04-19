@@ -9,8 +9,8 @@ setlocal enabledelayedexpansion
 
 :: --- CONFIGURATION ---
 set TASK_NAME=ObRail_ETL_Mensuel
-set ETL_SCRIPT=C:\Users\josep\Mspr2\MSPR\talend\lancement\lancement.bat
-set LOG_DIR=C:\Users\josep\Mspr2\MSPR\talend\logs
+set ETL_SCRIPT=\MSPR\talend\lancement\lancement.bat
+set LOG_DIR=\MSPR\talend\logs
 :: ---------------------
 
 echo.

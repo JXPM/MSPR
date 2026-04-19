@@ -153,7 +153,7 @@ Note : les colonnes `latitude` et `longitude` ont ete sorties des barres de comp
 ### Backend
 
 ```bash
-cd /home/johan/MSPR/backend
+cd ./MSPR/backend
 source ../venv/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
@@ -161,7 +161,7 @@ uvicorn app.main:app --reload --port 8000
 ### Dashboard
 
 ```bash
-cd /home/johan/MSPR/dashboard
+cd ./MSPR/dashboard
 source ../venv/bin/activate
 streamlit run app.py
 ```

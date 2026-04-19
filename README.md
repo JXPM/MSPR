@@ -341,8 +341,6 @@ Le MCD a été conçu afin de garantir :
 - Une compatibilité avec des flux multi-sources
 - Une évolutivité vers des analyses avancées et modèles IA
 
-![MCDFinal](MCDFinal.jpg)
-
 ---
 
 ## 10. Stack technique

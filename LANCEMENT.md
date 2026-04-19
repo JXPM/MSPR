@@ -26,7 +26,7 @@
 Le fichier `backend/.env` doit contenir :
 
 ```
-DATABASE_URL=postgresql://postgres:girllikepro12@localhost:5432/mspr2
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ```
 
 > Pas de chevrons `< >` autour du mot de passe — c'est la valeur brute.
@@ -38,8 +38,8 @@ DATABASE_URL=postgresql://postgres:girllikepro12@localhost:5432/mspr2
 ### Terminal 1 — Backend FastAPI
 
 ```bash
-c:\Users\josep\Mspr2\MSPR\venv\Scripts\activate.ps1
-cd C:\Users\josep\Mspr2\MSPR\backend
+.\MSPR\venv\Scripts\activate.ps1
+cd .\MSPR\backend
 ..\venv\Scripts\uvicorn app.main:app --port 500
 ```
 
@@ -53,8 +53,8 @@ curl http://127.0.0.1:8001/health
 ### Terminal 2 — Dashboard Streamlit
 
 ```bash
-c:\Users\josep\Mspr2\MSPR\venv\Scripts\activate.ps1
-cd C:\Users\josep\Mspr2\MSPR\dashboard
+.\MSPR\venv\Scripts\activate.ps1
+cd .\MSPR\dashboard
 streamlit run app.py --server.port 8501
 #en cas de probleme de port
 taskkill /PID 20588 /F
@@ -67,7 +67,7 @@ Dashboard disponible sur : http://localhost:8501
 ## Installer / mettre à jour les dépendances
 
 ```bash
-cd C:\Users\josep\Mspr2\MSPR
+cd .\MSPR
 venv\Scripts\pip install -r backend\requirements.txt
 venv\Scripts\pip install -r dashboard\requirements.txt
 ```

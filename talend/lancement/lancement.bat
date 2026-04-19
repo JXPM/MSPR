@@ -6,9 +6,9 @@ setlocal enabledelayedexpansion
 :: ============================================================
 
 :: --- CONFIGURATION ---
-set BASE_DIR=C:\Users\josep\Mspr2\MSPR\talend\Jobs\Jobs
-set LOG_DIR=C:\Users\josep\Mspr2\MSPR\talend\logs
-set DUMP_DIR=C:\Users\josep\Mspr2\MSPR\talend\dump
+set BASE_DIR=\MSPR\talend\Jobs\Jobs
+set LOG_DIR=\MSPR\talend\logs
+set DUMP_DIR=\MSPR\talend\dump
 set PGSQL="C:\Program Files\PostgreSQL\18\bin\psql.exe"
 set PGDUMP="C:\Program Files\PostgreSQL\18\bin\pg_dump.exe"
 set DB_NAME=mspr2
