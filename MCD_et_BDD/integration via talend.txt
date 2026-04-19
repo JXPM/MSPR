@@ -1,0 +1,10 @@
+Pour l integration via talend 
+
+Pays   =  lists_of_iso_3166.csv   ->  stations.csv
+Gare = stations
+
+Source = excel joseph 
+
+Oprateur - ligne – trajet - itinéraire – type de train  = data nigth et sncf gtfs
+
+Emission = emission.csv 
