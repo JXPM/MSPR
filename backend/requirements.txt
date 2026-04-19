@@ -11,3 +11,8 @@ alembic
 
 pytest
 httpx
+
+streamlit
+pandas
+plotly
+requests

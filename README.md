@@ -91,7 +91,7 @@ Le schéma est structuré en **trois couches logiques** garantissant une sépara
 
 ### Diagramme conceptuel (MCD)
 
-![MCD ObRail Europe](MCDFinal.jpg)
+![MCD ObRail Europe](MCD_et_BDD/MCDFinal.jpg)
 
 ### Couche Référentiel
 
@@ -312,180 +312,36 @@ Le service `dashboard/services/api_service.py` centralise tous les appels vers l
 
 ---
 
-## 7. Installation pas à pas
+## Modélisation des données
 
-### Prérequis
+La base de données est structurée en trois couches :
 
-| Outil | Version minimale | Usage |
-|---|---|---|
-| Python | 3.10+ | Backend + Dashboard |
-| PostgreSQL | 14+ | Base de données |
-| Talend Open Studio | 8.x | ETL (rejouer les jobs) |
-| Git | — | Gestion de version |
+### 🔹 Référentiel
+- Pays
+- Gare
+- Opérateur
+- Ligne
+- Type de train
+- Source (traçabilité ETL)
 
-### Étape 1 — Cloner le dépôt
+### 🔹 Exploitation
+- Trajet (circulation réelle)
+- Passage (étapes éventuelles)
 
-```bash
-git clone https://github.com/JXPM/MSPR.git
-cd MSPR
-git checkout api
-```
-
-### Étape 2 — Créer l'environnement virtuel (racine du projet)
-
-```bash
-python3 -m venv venv
-source venv/bin/activate          # Linux / macOS
-# venv\Scripts\activate           # Windows
-pip install -r backend/requirements.txt
-pip install -r dashboard/requirements.txt
-```
-
-### Étape 3 — Configurer et initialiser la base de données
-
-```bash
-# Créer la base
-psql -U postgres -c "CREATE DATABASE obrail;"
-
-# Créer le schéma (11 tables)
-psql -U postgres -d obrail -f MCD_et_BDD/mspr.sql
-
-# Charger les données
-psql -U postgres -d obrail -f MCD_et_BDD/remplissage.sql
-
-# Vérifier la qualité des données (optionnel)
-psql -U postgres -d obrail -f MCD_et_BDD/requetes_verification.sql
-```
-
-### Étape 4 — Configurer les variables d'environnement
-
-```bash
-# Créer le fichier .env dans le dossier backend
-echo "DATABASE_URL=postgresql://postgres:<mot_de_passe>@localhost:5432/obrail" > backend/.env
-```
-
-### Étape 5 — Lancer l'API backend
-
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-> L'API est disponible sur `http://localhost:8000`  
-> Swagger UI : `http://localhost:8000/docs`
-
-### Étape 6 — Lancer le dashboard (dans un second terminal)
-
-```bash
-cd dashboard
-streamlit run app.py
-```
-
-> Dashboard disponible sur `http://localhost:8501`
-
-### Vérification rapide
-
-```bash
-# Tester l'API
-curl http://localhost:8000/health
-# Réponse attendue : {"status":"ok"}
-
-curl http://localhost:8000/stats/trajets/type
-# Réponse attendue : {"JOUR": X, "NUIT": Y}
-```
+### 🔹 Analyse
+- Emission (comparaison environnementale train vs avion)
 
 ---
 
-## 8. Structure du projet
+## Modèle Conceptuel de Données (MCD)
 
-```
-MSPR/
-│
-├── backend/                          # API REST FastAPI
-│   ├── app/
-│   │   ├── main.py                   # Point d'entrée — instancie FastAPI et include les routers
-│   │   ├── database.py               # Engine SQLAlchemy, SessionLocal, Base, get_db()
-│   │   ├── models/                   # ORM SQLAlchemy (un fichier par entité)
-│   │   │   ├── pays.py
-│   │   │   ├── gare.py
-│   │   │   ├── operateur.py
-│   │   │   ├── ligne.py
-│   │   │   ├── trajet.py
-│   │   │   ├── itineraire.py
-│   │   │   ├── emission.py
-│   │   │   └── type_train.py
-│   │   ├── schemas/                  # Schémas Pydantic (validation I/O)
-│   │   │   ├── gare_schema.py
-│   │   │   ├── trajet_schema.py
-│   │   │   ├── ligne_schema.py
-│   │   │   ├── operateur_schema.py
-│   │   │   ├── pays_schema.py
-│   │   │   ├── emission_schema.py
-│   │   │   ├── itineraire_schema.py
-│   │   │   └── type_train_schema.py
-│   │   ├── routes/                   # Routers FastAPI (un fichier par domaine)
-│   │   │   ├── health_routes.py      # GET /health
-│   │   │   ├── trajet_routes.py      # GET /trajets, GET /trajets/{id}
-│   │   │   ├── gare_routes.py        # GET /gares
-│   │   │   ├── ligne_routes.py       # GET /lignes
-│   │   │   └── stats_routes.py       # GET /stats/...
-│   │   └── services/                 # Logique métier (séparé des routes)
-│   │       ├── stats_service.py      # count_trajets, count_lignes, count_gares
-│   │       ├── trajet_service.py
-│   │       ├── gare_service.py
-│   │       └── ligne_service.py
-│   ├── .env                          # Variables d'environnement (non versionné)
-│   └── requirements.txt
-│
-├── dashboard/                        # Tableau de bord Streamlit
-│   ├── app.py                        # Application principale + routing des pages
-│   ├── components/
-│   │   ├── charts.py                 # Graphiques Plotly (pie, CO2, opérateurs)
-│   │   ├── kpi_cards.py              # Cartes KPI
-│   │   └── map.py                    # Carte réseau ferroviaire (Scattermapbox)
-│   ├── _pages/                       # Pages futures (non actives — préfixe _ exclut Streamlit)
-│   │   ├── overview.py
-│   │   ├── network.py
-│   │   ├── environment.py
-│   │   └── data_quality.py
-│   ├── services/
-│   │   └── api_service.py            # Client HTTP vers l'API FastAPI
-│   ├── config/
-│   │   └── api_config.py             # URL de base de l'API
-│   └── requirements.txt
-│
-├── MCD_et_BDD/                       # Base de données & ETL
-│   ├── mspr.sql                      # Script de création du schéma PostgreSQL (11 tables)
-│   ├── remplissage.sql               # Script de chargement des données
-│   ├── requetes_verification.sql     # Requêtes de contrôle qualité
-│   ├── MCDFinal.loo                  # Fichier source Looping (MCD éditable)
-│   └── integration via talend.txt   # Documentation des jobs ETL Talend
-│
-├── venv/                             # Environnement virtuel Python (non versionné)
-├── MCDFinal.jpg                      # Export visuel du MCD
-├── journal.sh                        # Journal de bord du projet
-├── .gitignore
-└── README.md                         # Ce fichier
-```
+Le MCD a été conçu afin de garantir :
 
----
+- Une séparation claire entre structure réseau et circulation réelle
+- Une compatibilité avec des flux multi-sources
+- Une évolutivité vers des analyses avancées et modèles IA
 
-## 9. Sources de données
-
-| Source | Format | Tables alimentées | Licence | URL |
-|---|---|---|---|---|
-| Back-on-Track Night Train Database | JSON (`trips.json`) | `operateur`, `ligne`, `trajet`, `itineraire`, `emission` | Open Data | [back-on-track.eu](https://back-on-track.eu/) |
-| Trainline EU — stations.csv | CSV | `gare` | Open Data (MIT) | [github.com/trainline-eu/stations](https://github.com/trainline-eu/stations) |
-| ISO 3166-1 | CSV | `pays` | Domaine public | [iso.org](https://www.iso.org/iso-3166-country-codes.html) |
-| SNCF Open Data (GTFS) | ZIP/CSV | `type_train` | Open Data | [transport.data.gouv.fr](https://transport.data.gouv.fr/) |
-| emission.csv (calculé) | CSV | `emission` | Calculé (ADEME/BEIS) | Facteur : 0.158 kg CO₂e/km/passager |
-
-### Webographie complémentaire
-
-- [European Data Portal](https://data.europa.eu/) — Données ouvertes européennes
-- [Eurostat Transport](https://ec.europa.eu/eurostat/web/transport) — Statistiques ferroviaires
-- [MobilityDatabase](https://mobilitydatabase.org/) — Jeux de données GTFS internationaux
-- [Transitland](https://www.transit.land/) — Réseau de transport mondial
+![MCDFinal](MCDFinal.jpg)
 
 ---
 

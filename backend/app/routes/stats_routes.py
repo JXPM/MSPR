@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
 from collections import defaultdict
 
@@ -35,15 +35,9 @@ def count_gares():
     return stats_service.count_gares()
 
 
-@router.get("/pays/count")
-def count_pays(db: Session = Depends(get_db)):
-    from app.models.pays import Pays
-    count = db.query(func.count(Pays.iso_pays)).scalar()
-    return {"total_pays": count}
-
-
 @router.get("/trajets/type")
 def trajets_by_type(db: Session = Depends(get_db)):
+    """Répartition des trajets par type de service (JOUR / NUIT)."""
     result = (
         db.query(Ligne.type_service, func.count(Trajet.trajet_id))
         .join(Trajet, Trajet.id_ligne == Ligne.id_ligne)
@@ -77,25 +71,37 @@ def stats_operateurs(db: Session = Depends(get_db)):
     result = (
         db.query(
             Operateur.nom_operateur,
-            Operateur.code_operateur,
             func.count(Trajet.trajet_id)
         )
-        .join(
+        .outerjoin(
             Trajet,
-            func.split_part(Trajet.trajet_id, ' ', 1) == Operateur.code_operateur
+            func.substring(Trajet.trajet_id, 1, 3) == Operateur.code_operateur
         )
-        .group_by(Operateur.nom_operateur, Operateur.code_operateur)
+        .group_by(Operateur.nom_operateur)
         .all()
     )
-    return [{"operateur": r[0], "trajets": r[2]} for r in result]
+    return [{"operateur": r[0], "trajets": r[1]} for r in result]
 
 
 # =========================
-# TRAJETS MAP
+# TRAJETS MAP — segments réels via itineraire + gare
 # =========================
 
 @router.get("/trajets/map")
 def trajets_map(db: Session = Depends(get_db)):
+    """
+    Construit les segments entre gares consécutives en utilisant :
+      - itineraire.trajet_id + itineraire.id_itineraire  (ordre des gares)
+      - itineraire.code_uic → gare.code_uic              (coordonnées)
+
+    Stratégie :
+      1. On prend un échantillon de trajets distincts (limite 200)
+      2. On charge tous leurs arrêts avec lat/lon, triés par id_itineraire
+      3. On construit les segments gare[i] → gare[i+1]
+      4. On déduplique les segments identiques (même réseau = même tronçon)
+    """
+
+    # -- Étape 1 : sélectionner un sous-ensemble de trajets distincts --------
     trajet_ids = (
         db.query(Itineraire.trajet_id)
         .distinct()
@@ -107,6 +113,7 @@ def trajets_map(db: Session = Depends(get_db)):
     if not trajet_ids:
         return []
 
+    # -- Étape 2 : récupérer tous les arrêts avec coordonnées ----------------
     rows = (
         db.query(
             Itineraire.trajet_id,
@@ -122,6 +129,7 @@ def trajets_map(db: Session = Depends(get_db)):
         .all()
     )
 
+    # -- Étape 3 : regrouper par trajet et construire les segments ------------
     by_trajet = defaultdict(list)
     for trajet_id, order_idx, lat, lon in rows:
         by_trajet[trajet_id].append((order_idx, lat, lon))
@@ -130,14 +138,19 @@ def trajets_map(db: Session = Depends(get_db)):
     segments = []
 
     for trajet_id, stops in by_trajet.items():
+        # Trier par id_itineraire (déjà fait en SQL mais on s'assure)
         stops.sort(key=lambda x: x[0])
+
         for i in range(len(stops) - 1):
             _, lat1, lon1 = stops[i]
             _, lat2, lon2 = stops[i + 1]
+
+            # Déduplique les tronçons identiques (même segment dans trajets différents)
             key = (round(lat1, 4), round(lon1, 4), round(lat2, 4), round(lon2, 4))
             if key in seen:
                 continue
             seen.add(key)
+
             segments.append({
                 "lat_depart":  lat1,
                 "lon_depart":  lon1,

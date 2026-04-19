@@ -6,3 +6,7 @@ venv/
 .env.*
 .idea/
 .vscode/
+.sixth/
+*.log
+*.tmp.*
+.DS_Store
