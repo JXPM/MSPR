@@ -34,6 +34,12 @@ def count_lignes():
 def count_gares():
     return stats_service.count_gares()
 
+@router.get("/pays/count")
+def count_pays(db: Session = Depends(get_db)):
+    from app.models.pays import Pays
+    count = db.query(func.count(Pays.iso_pays)).scalar()
+    return {"total_pays": count}
+
 
 @router.get("/trajets/type")
 def trajets_by_type(db: Session = Depends(get_db)):
