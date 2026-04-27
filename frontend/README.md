@@ -12,7 +12,7 @@ Réalisé dans le cadre de la **MSPR TPRE532 — Bloc E6.3** (Produire et mainte
 
 ---
 
-## 🧰 Stack
+##  Stack
 
 - **React 18** + **TypeScript 5** + **Vite 5**
 - **Tailwind CSS** (design tokens custom ObRail : forest / cream / rust / midnight)
@@ -28,7 +28,7 @@ non-génériques, pour incarner l'identité éditoriale d'un observatoire instit
 
 ---
 
-## 📁 Structure
+##  Structure
 
 ```
 obrail-frontend/
@@ -66,44 +66,7 @@ obrail-frontend/
 
 ---
 
-## ⚠️ Avant de lancer — Ajouter CORS côté backend
-
-Ton `app/main.py` n'expose pas CORS par défaut. En dev le proxy Vite contourne le
-problème, mais **en prod c'est obligatoire**. À ajouter :
-
-```python
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.routes import trajet_routes, health_routes, gare_routes, ligne_routes, stats_routes
-
-app = FastAPI(
-    title="ObRail Europe API",
-    description="API REST — dessertes ferroviaires européennes",
-    version="1.0.0",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",   # Vite dev
-        "http://localhost:4173",   # Vite preview
-        "http://localhost:8080",   # Nginx prod
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(health_routes.router)
-app.include_router(trajet_routes.router)
-app.include_router(gare_routes.router)
-app.include_router(ligne_routes.router)
-app.include_router(stats_routes.router)
-```
-
----
-
-## 🚀 Installation & développement
+##  Installation & développement
 
 **Prérequis :** Node.js 20+, backend FastAPI sur `http://localhost:8000`
 
@@ -119,7 +82,7 @@ Le proxy Vite redirige `/api/*` vers `http://localhost:8000/*` automatiquement.
 
 ---
 
-## 🧪 Tests E2E
+##  Tests E2E
 
 ```bash
 npm run test:e2e                  # run all
@@ -131,7 +94,7 @@ Les 4 specs couvrent home, trajets, dashboard, supervision.
 
 ---
 
-## 🏗️ Build production
+##  Build production
 
 ```bash
 npm run build
@@ -140,7 +103,7 @@ npm run preview
 
 ---
 
-## 🐳 Docker
+##  Docker
 
 ```bash
 docker build -t obrail-frontend .
@@ -155,7 +118,7 @@ gzip, cache 1 an sur assets hashés, fallback SPA, HEALTHCHECK.
 
 ---
 
-## 🔄 CI/CD
+##  CI/CD
 
 Workflow GitHub Actions (`.github/workflows/ci.yml`) :
 
@@ -167,7 +130,7 @@ Déclenchement : push sur `main`/`develop`, PR vers `main`.
 
 ---
 
-## 🎨 Design
+##  Design
 
 ### Palette
 - **Forest** — primaire, écologie institutionnelle
@@ -197,36 +160,3 @@ est lisible au premier coup d'œil dans les cards et sur le dashboard.
 Audit complet à faire avec `axe-core` / Lighthouse.
 
 ---
-
-## 📋 Roadmap livrée
-
-| Chat | Sujet | Statut |
-|------|-------|--------|
-| 1 | Setup + layout + routing | ✅ |
-| 2 | Liste Trajets + filtres (URL-sync, pagination) | ✅ |
-| 3 | Dashboard + 4 graphiques Recharts | ✅ |
-| 4 | Détail Trajet + carte Leaflet | ✅ |
-| 5 | Supervision enrichie (latence, uptime) | ✅ |
-| 6 | Tests E2E + CI/CD GitHub Actions | ✅ |
-
-Voir `COMPETENCES_MSPR.md` pour le mapping détaillé livrables ↔ RNCP 36581.
-
----
-
-## 🎓 Pour la soutenance
-
-**Points forts à défendre :**
-
-1. **Identité visuelle forte** — palette + typo cohérentes, pas de générique
-2. **URL-state des filtres** — partage de recherche, retour navigateur
-3. **Jointures client-side** — pragmatiques face à un backend sans filtres serveur
-4. **Monitoring maison frontend** — démontre la compréhension MLOps
-5. **Accessibilité dès la conception** — skip-link, ARIA, sémantique
-6. **Docker non-root + security headers** — bonnes pratiques prod
-
-**Questions-types à anticiper :**
-
-- « Pourquoi pas Server Components ? » → SPA plus simple à containeriser, API REST existante
-- « Pourquoi filtres côté client ? » → contrainte backend (`/trajets/` sans query params), à pousser côté serveur ultérieurement
-- « Comment ça scale ? » → pagination virtuelle (react-window), filtres serveur, cache CDN
-- « RGPD avec géoloc ? » → coordonnées des **gares** (entités publiques), pas des utilisateurs
