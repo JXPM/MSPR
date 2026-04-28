@@ -11,12 +11,3 @@ alembic
 
 pytest
 httpx
-
-streamlit
-pandas
-plotly
-requests
-
-streamlit-autorefresh
-folium
-streamlit-folium
