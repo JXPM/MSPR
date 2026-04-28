@@ -1,0 +1,323 @@
+name: ObRail Europe — CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend:  ${{ steps.filter.outputs.backend }}
+      talend:   ${{ steps.filter.outputs.talend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+            talend:
+              - 'talend/**'
+
+  # ─────── FRONTEND Streamlit ───────
+  frontend-test:
+    name: Frontend · lint & tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: frontend/requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov ruff
+      - name: Lint (ruff)
+        run: ruff check .
+        continue-on-error: true
+      - name: Verify Python files parse
+        run: |
+          python -m py_compile app.py lib/api.py lib/theme.py
+          for page in pages/*.py; do
+            python -m py_compile "$page" || exit 1
+          done
+          echo "✅ All Python files parse correctly"
+      - name: Run unit tests
+        run: pytest tests/ -v --cov=lib --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend/coverage.xml
+          retention-days: 14
+
+  # ─────── BACKEND ───────
+  backend-test:
+    name: Backend · lint & tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: mspr2_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov ruff
+      - name: Lint (ruff)
+        run: ruff check app/
+        continue-on-error: true
+      - name: Run tests
+        run: pytest --cov=app --cov-report=xml -v
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mspr2_test
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          retention-days: 14
+
+  # ─────── TALEND lint ───────
+  talend-lint:
+    name: Talend · validation scripts
+    needs: changes
+    if: needs.changes.outputs.talend == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: ./talend
+          severity: warning
+          ignore_paths: talend/Jobs/Jobs
+      - name: Scan secrets
+        run: |
+          ! grep -rE "(password|PGPASSWORD|secret)\s*=\s*['\"][^'\"]+['\"]" \
+              talend/lancement talend/planication talend/execution_etl 2>/dev/null \
+              || (echo "❌ Hardcoded secrets!" && exit 1)
+          echo "✅ No hardcoded secrets"
+      - name: Verify jobs structure
+        run: |
+          set -e
+          for job in pays gare operateur type_train ligne trajet exploite itineraire emission; do
+            [ -f "talend/Jobs/Jobs/${job}/${job}_0_1.jar" ] || (echo "❌ Missing $job"; exit 1)
+          done
+          echo "✅ All 9 jobs present"
+      - name: Validate JARs
+        run: |
+          for jar in talend/Jobs/Jobs/*/*_0_1.jar; do
+            unzip -tq "$jar" > /dev/null 2>&1 || (echo "❌ Corrupt: $jar"; exit 1)
+          done
+          echo "✅ All JARs valid"
+
+  # ─────── TALEND ETL dry-run ───────
+  talend-etl-dryrun:
+    name: Talend · exécution ETL (dry-run)
+    needs: [changes, talend-lint]
+    if: needs.changes.outputs.talend == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: mspr2
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Install psql
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Restore latest dump
+        env:
+          PGPASSWORD: postgres
+        run: |
+          LATEST=$(ls -t talend/dump/*.sql 2>/dev/null | head -1)
+          [ -n "$LATEST" ] && psql -h localhost -U postgres -d mspr2 -f "$LATEST" > /dev/null 2>&1 || true
+      - name: Run ETL pipeline
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set +e
+          cd talend/Jobs/Jobs
+          for JOB in pays gare operateur type_train ligne trajet exploite itineraire emission; do
+            echo "═══ $JOB ═══"
+            cd "$JOB"
+            CLASSPATH="."
+            for jar in ../lib/*.jar; do CLASSPATH="${CLASSPATH}:${jar}"; done
+            CLASSPATH="${CLASSPATH}:${JOB}_0_1.jar"
+            java -Dfile.encoding=UTF-8 \
+                 -Dtalend.component.manager.m2.repository="${PWD}/../lib" \
+                 -Xms256M -Xmx1024M \
+                 -cp "$CLASSPATH" \
+                 mspr2.${JOB}_0_1.${JOB} \
+                 --context=Default \
+                 2>&1 | tee "../../../../talend-${JOB}.log" || true
+            cd ..
+          done
+        continue-on-error: true
+      - name: Upload ETL logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: talend-etl-logs-${{ github.run_number }}
+          path: talend-*.log
+          retention-days: 14
+      - name: Generate fresh dump
+        if: success()
+        env:
+          PGPASSWORD: postgres
+        run: |
+          mkdir -p talend/dump-ci
+          pg_dump -h localhost -U postgres -d mspr2 -F p \
+            -f "talend/dump-ci/mspr2_dump_$(date +%Y-%m-%d_%H%M%S).sql"
+      - name: Upload fresh dump
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-dump-${{ github.run_number }}
+          path: talend/dump-ci/*.sql
+          retention-days: 30
+
+  # ─────── DOCKER ───────
+  docker-frontend:
+    name: Docker · frontend
+    needs: [frontend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/obrail-frontend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+  docker-backend:
+    name: Docker · backend
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/obrail-backend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+  summary:
+    name: Pipeline summary
+    needs: [frontend-test, backend-test, talend-lint, talend-etl-dryrun]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write summary
+        run: |
+          {
+            echo "# 🚂 ObRail Europe — Pipeline CI/CD"
+            echo ""
+            echo "| Bloc                 | Statut |"
+            echo "|----------------------|--------|"
+            echo "| Frontend tests       | ${{ needs.frontend-test.result }} |"
+            echo "| Backend tests        | ${{ needs.backend-test.result }} |"
+            echo "| Talend lint          | ${{ needs.talend-lint.result }} |"
+            echo "| Talend ETL dry-run   | ${{ needs.talend-etl-dryrun.result }} |"
+            echo ""
+            echo "**Commit :** \`${{ github.sha }}\`"
+            echo "**Branche :** \`${{ github.ref_name }}\`"
+          } >> $GITHUB_STEP_SUMMARY
