@@ -15,17 +15,17 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend:  ${{ steps.filter.outputs.backend }}
-      talend:   ${{ steps.filter.outputs.talend }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      backend:   ${{ steps.filter.outputs.backend }}
+      talend:    ${{ steps.filter.outputs.talend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            dashboards:
-              - 'dashboards/**'
+            dashboard:
+              - 'dashboard/**'
             backend:
               - 'backend/**'
             talend:
@@ -35,18 +35,18 @@ jobs:
   frontend-test:
     name: Frontend · lint & tests
     needs: changes
-    if: needs.changes.outputs.dashboards == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.dashboard == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: dashboards
+        working-directory: dashboard
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: dashboard/requirements.txt
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -57,18 +57,19 @@ jobs:
         continue-on-error: true
       - name: Verify Python files parse
         run: |
-          python -m py_compile app.py lib/api.py lib/theme.py
-          for page in pages/*.py; do
-            python -m py_compile "$page" || exit 1
+          python -m py_compile app.py services/api_service.py
+          for f in components/*.py _pages/*.py; do
+            python -m py_compile "$f" || exit 1
           done
           echo "All Python files parse correctly"
       - name: Run unit tests
-        run: pytest tests/ -v --cov=lib --cov-report=xml
+        if: hashFiles('dashboard/tests/**/*.py') != ''
+        run: pytest tests/ -v --cov=services --cov=components --cov-report=xml
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('dashboard/coverage.xml') != ''
         with:
           name: frontend-coverage
-          path: dashboards/coverage.xml
+          path: dashboard/coverage.xml
           retention-days: 14
 
   #  BACKEND 
