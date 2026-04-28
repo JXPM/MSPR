@@ -24,29 +24,29 @@ jobs:
         id: filter
         with:
           filters: |
-            frontend:
-              - 'frontend/**'
+            dashboards:
+              - 'dashboards/**'
             backend:
               - 'backend/**'
             talend:
               - 'talend/**'
 
-  # ─────── FRONTEND Streamlit ───────
+  #  FRONTEND Streamlit 
   frontend-test:
     name: Frontend · lint & tests
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.dashboards == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: dashboards
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: frontend/requirements.txt
+          cache-dependency-path: requirements.txt
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -61,17 +61,17 @@ jobs:
           for page in pages/*.py; do
             python -m py_compile "$page" || exit 1
           done
-          echo "✅ All Python files parse correctly"
+          echo "All Python files parse correctly"
       - name: Run unit tests
         run: pytest tests/ -v --cov=lib --cov-report=xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: frontend-coverage
-          path: frontend/coverage.xml
+          path: dashboards/coverage.xml
           retention-days: 14
 
-  # ─────── BACKEND ───────
+  #  BACKEND 
   backend-test:
     name: Backend · lint & tests
     needs: changes
@@ -120,7 +120,7 @@ jobs:
           path: backend/coverage.xml
           retention-days: 14
 
-  # ─────── TALEND lint ───────
+  #  TALEND lint 
   talend-lint:
     name: Talend · validation scripts
     needs: changes
@@ -138,23 +138,23 @@ jobs:
         run: |
           ! grep -rE "(password|PGPASSWORD|secret)\s*=\s*['\"][^'\"]+['\"]" \
               talend/lancement talend/planication talend/execution_etl 2>/dev/null \
-              || (echo "❌ Hardcoded secrets!" && exit 1)
-          echo "✅ No hardcoded secrets"
+              || (echo " Hardcoded secrets!" && exit 1)
+          echo "No hardcoded secrets"
       - name: Verify jobs structure
         run: |
           set -e
           for job in pays gare operateur type_train ligne trajet exploite itineraire emission; do
-            [ -f "talend/Jobs/Jobs/${job}/${job}_0_1.jar" ] || (echo "❌ Missing $job"; exit 1)
+            [ -f "talend/Jobs/Jobs/${job}/${job}_0_1.jar" ] || (echo " Missing $job"; exit 1)
           done
-          echo "✅ All 9 jobs present"
+          echo "All 9 jobs present"
       - name: Validate JARs
         run: |
           for jar in talend/Jobs/Jobs/*/*_0_1.jar; do
-            unzip -tq "$jar" > /dev/null 2>&1 || (echo "❌ Corrupt: $jar"; exit 1)
+            unzip -tq "$jar" > /dev/null 2>&1 || (echo " Corrupt: $jar"; exit 1)
           done
-          echo "✅ All JARs valid"
+          echo "All JARs valid"
 
-  # ─────── TALEND ETL dry-run ───────
+  #  TALEND ETL dry-run 
   talend-etl-dryrun:
     name: Talend · exécution ETL (dry-run)
     needs: [changes, talend-lint]
@@ -233,7 +233,7 @@ jobs:
           path: talend/dump-ci/*.sql
           retention-days: 30
 
-  # ─────── DOCKER ───────
+  #  DOCKER 
   docker-frontend:
     name: Docker · frontend
     needs: [frontend-test]
@@ -309,7 +309,7 @@ jobs:
       - name: Write summary
         run: |
           {
-            echo "# 🚂 ObRail Europe — Pipeline CI/CD"
+            echo "# ObRail Europe — Pipeline CI/CD"
             echo ""
             echo "| Bloc                 | Statut |"
             echo "|----------------------|--------|"
