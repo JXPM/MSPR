@@ -18,32 +18,23 @@ uvicorn app.main:app --reload
 
 #fichier Maj et push
 git status
-git add journal.sh
-git commit -m "maj Readme"
-git push origin main
+git add .
+git commit -m "maj"
+git push origin api
 
 # pull  
 git pull origin main
 
 # switch branch
-git checkout  joseph
-
 git checkout  joseph 
-
 
 git branch
 git status
 git add .
-
-
-git commit -m "ajout des services et des routes"
-git commit -m "ajout du dashboard & documentation"
-
-git push --set-upstream origin api 
-git commit -m "Maj Mcd et documentation changement de la bdd et redisposition des fichiers"
-git push --set-upstream origin joseph  
-
+git commit -m "Modifictationdu readme"
+git push --set-upstream origin api
 
 
 # merge branch
 git checkout main
+git merge api
