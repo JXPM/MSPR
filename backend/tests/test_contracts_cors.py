@@ -1,12 +1,3 @@
-"""
-Tests transversaux : CORS et contrats Pydantic
-================================================
-Le frontend Streamlit (sur 8501) consomme l'API (sur 8000) en cross-origin.
-Si CORS est mal configuré, le navigateur bloque les requêtes silencieusement.
-
-Compétence MSPR : « Endpoints sécurisés [...] facilement exploitables par
-                   les utilisateurs finaux » + « Accessibilité numérique »
-"""
 import pytest
 
 
@@ -43,7 +34,6 @@ class TestSchemasContract:
 
     def test_trajet_schema(self, client):
         trajet = client.get("/trajets/SNC-1001").json()
-        # Les champs de TrajetResponse
         assert isinstance(trajet["trajet_id"], str)
         assert isinstance(trajet["id_ligne"], int)
         assert isinstance(trajet["gare_depart"], str)
@@ -60,14 +50,12 @@ class TestSchemasContract:
         assert gare["latitude"] is None or isinstance(gare["latitude"], (int, float))
 
     def test_count_schema(self, client):
-        """Tous les /count retournent un objet avec une seule clé total_*."""
         count = client.get("/stats/trajets/count").json()
         assert "total_trajets" in count
         assert isinstance(count["total_trajets"], int)
         assert count["total_trajets"] >= 0
 
     def test_repartition_schema(self, client):
-        """{ JOUR: int, NUIT: int }"""
         rep = client.get("/stats/trajets/type").json()
         assert isinstance(rep["JOUR"], int)
         assert isinstance(rep["NUIT"], int)
@@ -75,7 +63,6 @@ class TestSchemasContract:
 
 @pytest.mark.contract
 class TestOpenAPIDoc:
-    """L'API doit exposer sa documentation OpenAPI (Swagger UI à /docs)."""
 
     def test_openapi_json_available(self, client):
         response = client.get("/openapi.json")

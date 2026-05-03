@@ -1,15 +1,3 @@
-"""
-Tests du client API du dashboard
-==================================
-Le module services/api_service.py est le SEUL point de contact avec le
-backend. Tests basés sur des mocks `requests` pour vérifier :
-  - les bonnes URLs construites
-  - les bons timeouts utilisés
-  - la robustesse aux erreurs (404, timeout, JSON invalide)
-
-Compétence MSPR : « Permettre l'exploitation du jeu de données par les
-                   autres composants du projet »
-"""
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -19,7 +7,6 @@ from services import api_service
 
 @pytest.fixture(autouse=True)
 def reset_api_url(monkeypatch):
-    """S'assure qu'on travaille sur une URL prévisible."""
     monkeypatch.setattr(api_service, "API_URL", "http://test-api:8000")
 
 
@@ -54,7 +41,6 @@ class TestGetTrajetItineraire:
         api_service.get_trajet_itineraire("CFR 78/1743")
 
         call_url = mock_get.call_args[0][0]
-        # '%20' pour espace et '%2F' pour slash
         assert "CFR%2078%2F1743" in call_url
 
     @patch("services.api_service.requests.get")
@@ -115,7 +101,6 @@ class TestGetOperateurs:
 class TestGetTrajetsMap:
     @patch("services.api_service.requests.get")
     def test_uses_longer_timeout(self, mock_get):
-        """Cet endpoint est lourd, on prévoit 15s au lieu de 10."""
         mock_response = MagicMock(status_code=200)
         mock_response.json.return_value = []
         mock_get.return_value = mock_response

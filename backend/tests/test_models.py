@@ -1,16 +1,3 @@
-"""
-Tests unitaires des modèles SQLAlchemy
-=========================================
-Vérifie :
-  - les clés primaires
-  - les relations FK et back_populates (qu'elles tiennent à l'insertion)
-  - la possibilité d'instancier chaque modèle
-  - les types de colonnes
-  - le mapping vers la table attendue
-
-Compétence MSPR : « Construire la structure de stockage des données
-                   (modèle de données) qui répond au mieux au besoin d'analyse »
-"""
 import pytest
 
 from app.models import (
@@ -20,7 +7,6 @@ from app.models import (
 
 @pytest.mark.unit
 class TestModelsTableNames:
-    """Le nom de table doit correspondre au schéma Postgres réel."""
 
     def test_pays_table(self):
         assert Pays.__tablename__ == "pays"
@@ -46,7 +32,6 @@ class TestModelsTableNames:
 
 @pytest.mark.unit
 class TestModelsPrimaryKeys:
-    """Les clés primaires doivent être correctement déclarées."""
 
     def test_pays_pk_iso(self):
         assert Pays.__table__.primary_key.columns.keys() == ["iso_pays"]
@@ -64,14 +49,12 @@ class TestModelsPrimaryKeys:
         assert Trajet.__table__.primary_key.columns.keys() == ["trajet_id"]
 
     def test_itineraire_composite_pk(self):
-        """Itineraire a une clé composite (trajet_id, id_itineraire)."""
         keys = set(Itineraire.__table__.primary_key.columns.keys())
         assert keys == {"trajet_id", "id_itineraire"}
 
 
 @pytest.mark.unit
 class TestModelsRelations:
-    """Les relations doivent fonctionner après insertion."""
 
     def test_pays_has_gares(self, seed_data):
         france = seed_data.query(Pays).filter_by(iso_pays="FR").one()
@@ -107,7 +90,6 @@ class TestModelsRelations:
 
 @pytest.mark.unit
 class TestModelInstantiation:
-    """Chaque modèle doit pouvoir être instancié sans erreur."""
 
     def test_pays(self):
         p = Pays(iso_pays="ES", nom_pays="Espagne")

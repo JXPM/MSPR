@@ -1,12 +1,3 @@
-"""
-Tests des générateurs de graphiques Plotly
-=============================================
-Vérifie que chaque fonction de components/charts.py produit une `go.Figure`
-valide avec les données et propriétés attendues.
-
-Compétence MSPR : « Représenter graphiquement les relations entre les
-                   données afin de les visualiser »
-"""
 import pandas as pd
 import plotly.graph_objects as go
 import pytest
@@ -22,7 +13,6 @@ class TestJourNuitChart:
 
     def test_has_donut_hole(self):
         fig = charts.trajets_jour_nuit_chart(jour=300, nuit=110)
-        # Le pie doit avoir un trou (donut)
         assert fig.data[0].hole > 0
 
     def test_handles_zero_values(self):
@@ -41,7 +31,6 @@ class TestCO2Chart:
         assert isinstance(fig, go.Figure)
 
     def test_handles_none_values(self):
-        """Quand l'API renvoie None (pas de data), on ne plante pas."""
         fig = charts.co2_chart({"train": None, "avion": None})
         assert isinstance(fig, go.Figure)
 

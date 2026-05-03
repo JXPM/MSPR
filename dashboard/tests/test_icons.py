@@ -1,8 +1,3 @@
-"""
-Tests du helper Lucide icons
-==============================
-La fonction `lucide()` génère des SVG inline pour les icônes.
-"""
 import pytest
 
 from components.icons import lucide
@@ -18,7 +13,6 @@ class TestLucide:
 
     def test_default_size(self):
         result = lucide("train")
-        # par défaut size=20
         assert 'width="20"' in result
         assert 'height="20"' in result
 
@@ -32,7 +26,5 @@ class TestLucide:
         assert "#ff0000" in result
 
     def test_unknown_icon_falls_back_gracefully(self):
-        """Une icône inexistante ne doit pas crasher."""
-        # On accepte soit un placeholder, soit une icône par défaut
         result = lucide("nonexistent_icon_xyz")
         assert isinstance(result, str)

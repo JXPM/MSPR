@@ -1,16 +1,3 @@
-"""
-ObRail Europe — Configuration de tests
-========================================
-Stratégie : SQLite en mémoire pour des tests rapides et isolés.
-
-Chaque test reçoit une BDD vierge peuplée avec un jeu de données
-représentatif de la production (4 pays, 6 gares, 3 opérateurs, 3 lignes
-JOUR/NUIT, 4 trajets, 2 itinéraires, 1 émission).
-
-L'override de get_db fait pointer FastAPI vers cette BDD test, ce qui
-permet de tester la chaîne complète route → service → modèle → SQLite
-sans aucun setup externe (Postgres, Docker, etc).
-"""
 from __future__ import annotations
 
 import os
@@ -27,8 +14,6 @@ from sqlalchemy.pool import StaticPool
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# DATABASE_URL doit être défini AVANT l'import de l'app pour que SQLAlchemy
-# s'initialise sur SQLite et pas sur Postgres
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 from app.database import Base, get_db  # noqa: E402
@@ -38,11 +23,6 @@ from app.models import (  # noqa: E402
 )
 
 
-# ─────────────────────────────────────────────────────────────────────
-#  Engine SQLite partagé (StaticPool) — la même connexion sert à toutes
-#  les sessions du test, sinon SQLite en mémoire perd les données entre
-#  deux sessions.
-# ─────────────────────────────────────────────────────────────────────
 @pytest.fixture(scope="function")
 def db_engine():
     """Crée un engine SQLite en mémoire pour un seul test."""
@@ -68,22 +48,8 @@ def db_session(db_engine):
         session.close()
 
 
-# ─────────────────────────────────────────────────────────────────────
-#  Données de test — un mini-jeu cohérent
-# ─────────────────────────────────────────────────────────────────────
 @pytest.fixture(scope="function")
 def seed_data(db_session):
-    """
-    Peuple la BDD avec un jeu cohérent :
-      - 4 pays (FR, DE, IT, AT)
-      - 6 gares (2 FR, 2 DE, 1 IT, 1 AT)
-      - 3 opérateurs (SNC=SNCF, OBB=ÖBB, DBA=DB)
-      - 3 types_train (TGV, NJ=Nightjet, ICE)
-      - 3 lignes : 2 JOUR + 1 NUIT
-      - 4 trajets dont 2 nuit, 2 jour
-      - 2 itinéraires
-      - 1 emission
-    """
     # Pays
     db_session.add_all([
         Pays(iso_pays="FR", nom_pays="France"),
@@ -183,9 +149,6 @@ def seed_data(db_session):
     return db_session
 
 
-# ─────────────────────────────────────────────────────────────────────
-#  TestClient FastAPI configuré pour utiliser la BDD test
-# ─────────────────────────────────────────────────────────────────────
 @pytest.fixture(scope="function")
 def client(seed_data, db_engine):
     """

@@ -1,14 +1,3 @@
-"""
-Tests des endpoints /trajets/*
-=================================
-Couvre :
-  - GET /trajets/             (liste complète)
-  - GET /trajets/{id}         (détail + 404)
-  - GET /trajets/{id}/itineraire  (gares ordonnées)
-
-Compétence MSPR : « Endpoints de consultation permettant d'interroger les
-                   dessertes ferroviaires selon différents critères »
-"""
 import pytest
 
 
@@ -25,7 +14,6 @@ class TestTrajetsListe:
         assert len(data) == 4
 
     def test_trajet_has_required_fields(self, client):
-        """Chaque trajet doit respecter le schéma Pydantic TrajetResponse."""
         response = client.get("/trajets/")
         trajet = response.json()[0]
         required_fields = {
@@ -35,7 +23,6 @@ class TestTrajetsListe:
         assert required_fields.issubset(trajet.keys())
 
     def test_all_trajet_ids_are_unique(self, client):
-        """Pas de doublon de trajet_id."""
         response = client.get("/trajets/")
         ids = [t["trajet_id"] for t in response.json()]
         assert len(ids) == len(set(ids))
@@ -57,7 +44,6 @@ class TestTrajetDetail:
         assert response.json()["detail"] == "Trajet not found"
 
     def test_get_trajet_returns_id_ligne(self, client):
-        """La FK vers la ligne doit être renvoyée pour permettre la jointure côté front."""
         response = client.get("/trajets/OBB-2001")
         assert response.json()["id_ligne"] == 2
 
@@ -65,18 +51,14 @@ class TestTrajetDetail:
 @pytest.mark.integration
 class TestTrajetItineraire:
     def test_itineraire_returns_ordered_gares(self, client):
-        """OBB-2001 a 3 gares dans l'ordre Paris Lyon → München → Wien."""
         response = client.get("/trajets/OBB-2001/itineraire")
         assert response.status_code == 200
         stops = response.json()
         assert len(stops) == 3
-
-        # L'ordre doit être préservé via id_itineraire / split du chemin
         nom_gares = [s["nom_gare"] for s in stops]
         assert nom_gares == ["Paris Lyon", "München Hbf", "Wien Hbf"]
 
     def test_itineraire_includes_coordinates(self, client):
-        """Les coordonnées GPS sont injectées via la jointure avec gare."""
         response = client.get("/trajets/OBB-2001/itineraire")
         stops = response.json()
         first = stops[0]
@@ -86,7 +68,6 @@ class TestTrajetItineraire:
         assert first["longitude"] is not None
 
     def test_itineraire_includes_uic_and_iso(self, client):
-        """Code UIC et ISO pays attendus pour chaque arrêt."""
         response = client.get("/trajets/OBB-2001/itineraire")
         stops = response.json()
         for stop in stops:
@@ -98,7 +79,6 @@ class TestTrajetItineraire:
         assert response.status_code == 404
 
     def test_itineraire_supports_slash_in_id(self, client, seed_data):
-        """Le converter `:path` doit accepter les `/` dans le trajet_id (cas réel : 'CFR 78/1743')."""
         from app.models import Trajet, Itineraire
         seed_data.add(Trajet(
             trajet_id="CFR 78/1743",
@@ -113,7 +93,6 @@ class TestTrajetItineraire:
         ))
         seed_data.commit()
 
-        # Le client encode automatiquement les espaces, mais le slash passe en clair
         response = client.get("/trajets/CFR 78/1743/itineraire")
         assert response.status_code == 200
         assert len(response.json()) >= 1
