@@ -78,6 +78,22 @@ backend-test:
 backend-shell: 
 	docker compose exec backend python
 
+test: test-backend test-dashboard test-talend ## Lance toute la suite (154 tests, ~10s)
+	@echo ""
+	@echo "$(GREEN) Tous les tests sont passés (154 vérifications)$(RESET)"
+
+## 91 tests backend (FastAPI + modèles + qualité données)
+
+test-backend: 
+	@echo "$(BLUE)  Backend — pytest$(RESET)"
+	@cd backend && python -m pytest tests/ --tb=short
+
+## 31 tests dashboard (client API + Plotly + icons)
+
+test-dashboard: 
+	@echo "$(BLUE)  Dashboard — pytest$(RESET)"
+	@cd dashboard && python -m pytest tests/ --tb=short
+
 #  ETL Talend 
 
 ## Lance le pipeline ETL Talend (Linux)
