@@ -1,325 +1,203 @@
-import plotly.graph_objects as go
+"""Graphiques Plotly harmonises avec la maquette ObRail."""
+
+from __future__ import annotations
+
 import pandas as pd
+import plotly.graph_objects as go
 
 
-def trajets_jour_nuit_chart(jour: int = 0, nuit: int = 0):
-    total = jour + nuit or 1
-    pct_jour = round(jour / total * 100, 1)
-    pct_nuit = round(nuit / total * 100, 1)
+GREEN = "#174936"
+GREEN_2 = "#255845"
+NAVY = "#1d2a53"
+ACCENT = "#ea7d57"
+TEXT = "#143d35"
+MUTED = "#6d877f"
+GRID = "#e5d8c8"
+CREAM = "#f6f1e8"
+OK = "#1f6e4e"
+DANGER = "#b94d4d"
 
-    fig = go.Figure(go.Pie(
-        labels=["Trajets jour", "Trajets nuit"],
-        values=[jour, nuit],
-        hole=0.0,
-        marker=dict(
-            colors=["#10b981", "#3b82f6"],
-            line=dict(color="#080c14", width=2),
-        ),
-        textinfo="value+percent",
-        textfont=dict(size=13, color="white", family="DM Mono, monospace"),
-        hovertemplate="<b>%{label}</b><br>%{value:,} trajets — %{percent}<extra></extra>",
-        pull=[0.03, 0],
-        textposition="inside",
-        insidetextorientation="radial",
-    ))
+FONT_BODY = "Inter, sans-serif"
+FONT_SERIF = "Cormorant Garamond, serif"
+FONT_MONO = "IBM Plex Mono, monospace"
 
-    fig.update_layout(
+
+def _base_layout(height: int = 300, **overrides) -> dict:
+    layout = dict(
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#8492a6"),
-        legend=dict(
-            orientation="h", yanchor="bottom", y=-0.06,
-            xanchor="center", x=0.5,
-            font=dict(size=12, color="#8492a6"),
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        margin=dict(l=10, r=10, t=10, b=30),
-        height=300,
+        plot_bgcolor="rgba(255,255,255,0.18)",
+        font=dict(family=FONT_BODY, color=MUTED, size=12),
+        margin=dict(l=10, r=10, t=12, b=12),
+        height=height,
     )
-    return fig
+    layout.update(overrides)
+    return layout
 
 
-def co2_chart(data: dict):
-    train_val = round(float(data.get("train") or 0))
-    avion_val = round(float(data.get("avion") or 0))
-
-    train_kg = 8
-    avion_kg = 54
-    saved = max(0, avion_val - train_val)
-    ratio = round(avion_val / train_val, 1) if train_val > 0 else 0
-
-    ymax = max(train_val, avion_val, 1)
-    top = ymax * 1.22
-    bottom_band = ymax * 0.70
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=["Trains", "Avions"],
-        y=[train_val, avion_val],
-        marker=dict(
-            color=["#10b981", "#f59e0b"],
-            line_width=0,
-        ),
-        width=[0.42, 0.42],
-        text=[f"{train_val:,}", f"{avion_val:,}"],
-        textposition="outside",
-        textfont=dict(size=20, color=["#6ee7b7", "#fbbf24"], family="DM Mono, monospace"),
-        hovertemplate="<b>%{x}</b><br>%{y:,} tonnes CO₂<extra></extra>",
-    ))
-
+def trajets_jour_nuit_chart(jour: int = 0, nuit: int = 0, unit_label: str = "TRAJETS") -> go.Figure:
+    total = jour + nuit
+    fig = go.Figure(
+        go.Pie(
+            labels=["Jour", "Nuit"],
+            values=[jour, nuit],
+            hole=0.68,
+            marker=dict(colors=[GREEN, NAVY], line=dict(color=CREAM, width=4)),
+            textinfo="percent",
+            textfont=dict(size=13, color=CREAM, family=FONT_MONO),
+            hovertemplate=f"<b>%{{label}}</b><br>%{{value:,}} {unit_label.lower()}<extra></extra>",
+        )
+    )
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#8492a6"),
-        title=dict(
-            text="Émissions CO₂ : Trains vs Avions",
-            font=dict(size=13, color="#c8d3e8"),
-            x=0,
-            xanchor="left",
-            pad=dict(l=2),
+        **_base_layout(height=320),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.08,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=12, color=TEXT),
         ),
-        showlegend=False,
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            tickfont=dict(size=14, color="#c8d3e8"),
-            fixedrange=True,
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(255,255,255,0.04)",
-            zeroline=False,
-            showticklabels=False,
-            range=[-bottom_band, top],
-            fixedrange=True,
-        ),
-        margin=dict(l=10, r=10, t=40, b=12),
-        height=360,
         annotations=[
-            # Ligne 1: tonnage sous chaque barre
-            dict(x="Trains", y=-(bottom_band * 0.18), text=f"<b>{train_val:,}</b> tonnes", showarrow=False, font=dict(size=20, color="#f0f4ff", family="DM Sans, sans-serif"), xanchor="center"),
-            dict(x="Avions", y=-(bottom_band * 0.18), text=f"<b>{avion_val:,}</b> tonnes", showarrow=False, font=dict(size=20, color="#f0f4ff", family="DM Sans, sans-serif"), xanchor="center"),
-            # Ligne 2: facteurs sous chaque barre
-            dict(x="Trains", y=-(bottom_band * 0.42), text=f"<span style='color:#60a5fa'><b>{train_kg} Kg CO₂</b></span> par 100 km", showarrow=False, font=dict(size=12, color="#9fb0c8", family="DM Sans, sans-serif"), xanchor="center"),
-            dict(x="Avions", y=-(bottom_band * 0.42), text=f"<span style='color:#9ca3af'><b>{avion_kg} Kg CO₂</b></span> par 100 km", showarrow=False, font=dict(size=12, color="#9fb0c8", family="DM Sans, sans-serif"), xanchor="center"),
-            # Ligne 3: économie globale
-            dict(xref="paper", yref="y", x=0.50, y=-(bottom_band * 0.66), text=f"<span style='color:#10b981'><b>Train CO₂ Saved</b> ✓ {saved:,} tonnes ({ratio}× moins polluant)</span>", showarrow=False, font=dict(size=13, color="#10b981", family="DM Sans, sans-serif"), xanchor="center"),
+            dict(
+                x=0.5,
+                y=0.52,
+                showarrow=False,
+                text=(
+                    f"<span style='font-family:{FONT_SERIF};font-size:34px;color:{TEXT};'>{total:,}</span>"
+                    f"<br><span style='font-family:{FONT_MONO};font-size:11px;letter-spacing:.18em;color:{MUTED};'>{unit_label}</span>"
+                ),
+            )
         ],
     )
     return fig
 
 
-def operateurs_chart(data: list):
-    if not data:
-        fig = go.Figure()
-        fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            height=220,
+def co2_chart(data: dict) -> go.Figure:
+    train = round(float(data.get("train") or 0))
+    avion = round(float(data.get("avion") or 0))
+    saved = max(0, avion - train)
+    ratio = round(avion / train, 1) if train else 0
+
+    fig = go.Figure(
+        go.Bar(
+            x=["Train", "Avion"],
+            y=[train, avion],
+            marker=dict(color=[GREEN, ACCENT], line=dict(color="#d7c8b4", width=1.2)),
+            text=[f"{train:,} kg", f"{avion:,} kg"],
+            textposition="outside",
+            textfont=dict(family=FONT_MONO, color=TEXT, size=12),
+            hovertemplate="<b>%{x}</b><br>%{y:,} kg CO2<extra></extra>",
         )
-        return fig
-
-    df = pd.DataFrame(data).sort_values("trajets", ascending=True).tail(8)
-
-    fig = go.Figure(go.Bar(
-        x=df["trajets"],
-        y=df["operateur"],
-        orientation="h",
-        marker=dict(
-            color=df["trajets"],
-            colorscale=[[0, "#0ea5e9"], [0.5, "#0d9488"], [1, "#10b981"]],
-            showscale=False,
-            line_width=0,
-            cornerradius=3,
-        ),
-        hovertemplate="<b>%{y}</b><br>%{x:,.0f} trajets<extra></extra>",
-    ))
-
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#8492a6"),
-        title=dict(
-            text="Volume de Données par Opérateur",
-            font=dict(size=12, color="#c8d3e8"),
-            x=0, xanchor="left", pad=dict(l=2),
-        ),
-        showlegend=False,
-        xaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(255,255,255,0.04)",
-            zeroline=False,
-            tickfont=dict(size=9, color="#4b5875"),
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            tickfont=dict(size=11, color="#c8d3e8"),
-        ),
-        margin=dict(l=10, r=16, t=36, b=10),
-        height=220,
     )
-    return fig
-
-import plotly.graph_objects as go
-import pandas as pd
-
-
-def trajets_jour_nuit_chart(jour: int = 0, nuit: int = 0):
-    total = jour + nuit or 1
-    pct_jour = round(jour / total * 100, 1)
-    pct_nuit = round(nuit / total * 100, 1)
-
-    fig = go.Figure(go.Pie(
-        labels=["Trajets jour", "Trajets nuit"],
-        values=[jour, nuit],
-        hole=0.0,
-        marker=dict(
-            colors=["#10b981", "#3b82f6"],
-            line=dict(color="#080c14", width=2),
-        ),
-        textinfo="value+percent",
-        textfont=dict(size=13, color="white", family="DM Mono, monospace"),
-        hovertemplate="<b>%{label}</b><br>%{value:,} trajets — %{percent}<extra></extra>",
-        pull=[0.03, 0],
-        textposition="inside",
-        insidetextorientation="radial",
-    ))
-
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#8492a6"),
-        legend=dict(
-            orientation="h", yanchor="bottom", y=-0.06,
-            xanchor="center", x=0.5,
-            font=dict(size=12, color="#8492a6"),
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        margin=dict(l=10, r=10, t=10, b=30),
-        height=300,
-    )
-    return fig
-
-
-def co2_chart(data: dict):
-    train_val = round(float(data.get("train") or 0))
-    avion_val = round(float(data.get("avion") or 0))
-
-    train_kg = 8
-    avion_kg = 54
-    saved = max(0, avion_val - train_val)
-    ratio = round(avion_val / train_val, 1) if train_val > 0 else 0
-
-    ymax = max(train_val, avion_val, 1)
-    top = ymax * 1.22
-    bottom_band = ymax * 0.70
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=["Trains", "Avions"],
-        y=[train_val, avion_val],
-        marker=dict(
-            color=["#10b981", "#f59e0b"],
-            line_width=0,
-        ),
-        width=[0.42, 0.42],
-        text=[f"{train_val:,}", f"{avion_val:,}"],
-        textposition="outside",
-        textfont=dict(size=20, color=["#6ee7b7", "#fbbf24"], family="DM Mono, monospace"),
-        hovertemplate="<b>%{x}</b><br>%{y:,} tonnes CO₂<extra></extra>",
-    ))
-
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#8492a6"),
-        title=dict(
-            text="Émissions CO₂ : Trains vs Avions",
-            font=dict(size=13, color="#c8d3e8"),
-            x=0,
-            xanchor="left",
-            pad=dict(l=2),
-        ),
-        showlegend=False,
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            tickfont=dict(size=14, color="#c8d3e8"),
-            fixedrange=True,
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(255,255,255,0.04)",
-            zeroline=False,
-            showticklabels=False,
-            range=[-bottom_band, top],
-            fixedrange=True,
-        ),
-        margin=dict(l=10, r=10, t=40, b=12),
-        height=360,
+        **_base_layout(height=320),
+        xaxis=dict(showgrid=False, zeroline=False, color=TEXT),
+        yaxis=dict(showgrid=True, gridcolor=GRID, showticklabels=False, zeroline=False),
         annotations=[
-            # Ligne 1: tonnage sous chaque barre
-            dict(x="Trains", y=-(bottom_band * 0.18), text=f"<b>{train_val:,}</b> tonnes", showarrow=False, font=dict(size=20, color="#f0f4ff", family="DM Sans, sans-serif"), xanchor="center"),
-            dict(x="Avions", y=-(bottom_band * 0.18), text=f"<b>{avion_val:,}</b> tonnes", showarrow=False, font=dict(size=20, color="#f0f4ff", family="DM Sans, sans-serif"), xanchor="center"),
-            # Ligne 2: facteurs sous chaque barre
-            dict(x="Trains", y=-(bottom_band * 0.42), text=f"<span style='color:#60a5fa'><b>{train_kg} Kg CO₂</b></span> par 100 km", showarrow=False, font=dict(size=12, color="#9fb0c8", family="DM Sans, sans-serif"), xanchor="center"),
-            dict(x="Avions", y=-(bottom_band * 0.42), text=f"<span style='color:#9ca3af'><b>{avion_kg} Kg CO₂</b></span> par 100 km", showarrow=False, font=dict(size=12, color="#9fb0c8", family="DM Sans, sans-serif"), xanchor="center"),
-            # Ligne 3: économie globale
-            dict(xref="paper", yref="y", x=0.50, y=-(bottom_band * 0.66), text=f"<span style='color:#10b981'><b>Train CO₂ Saved</b> ✓ {saved:,} tonnes ({ratio}× moins polluant)</span>", showarrow=False, font=dict(size=13, color="#10b981", family="DM Sans, sans-serif"), xanchor="center"),
+            dict(
+                x=0.5,
+                y=-0.17,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                text=f"<span style='color:{GREEN};'><b>−{saved:,} kg</b></span> <span style='color:{MUTED};'>soit {ratio}x moins en train</span>",
+            )
         ],
     )
     return fig
 
 
-def operateurs_chart(data: list):
+def operateurs_chart(data: list) -> go.Figure:
     if not data:
         fig = go.Figure()
-        fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            height=220,
-        )
+        fig.update_layout(**_base_layout(height=240))
         return fig
 
     df = pd.DataFrame(data).sort_values("trajets", ascending=True)
-
-    fig = go.Figure(go.Bar(
-        x=df["trajets"],
-        y=df["operateur"],
-        orientation="h",
-        marker=dict(
-            color=df["trajets"],
-            colorscale=[[0, "#0ea5e9"], [0.5, "#0d9488"], [1, "#10b981"]],
-            showscale=False,
-            line_width=0,
-            cornerradius=3,
-        ),
-        hovertemplate="<b>%{y}</b><br>%{x:,.0f} trajets<extra></extra>",
-    ))
-
+    fig = go.Figure(
+        go.Bar(
+            x=df["trajets"],
+            y=df["operateur"],
+            orientation="h",
+            marker=dict(
+                color=df["trajets"],
+                colorscale=[[0, "#e8ddcf"], [0.45, "#9bb2aa"], [1, GREEN]],
+                showscale=False,
+                line=dict(color="#d7c8b4", width=1),
+            ),
+            text=[f"{value:,}" for value in df["trajets"]],
+            textposition="outside",
+            textfont=dict(family=FONT_MONO, color=TEXT, size=11),
+            hovertemplate="<b>%{y}</b><br>%{x:,.0f} trajets<extra></extra>",
+        )
+    )
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#8492a6"),
-        title=dict(
-            text="Volume de Données par Opérateur",
-            font=dict(size=12, color="#c8d3e8"),
-            x=0, xanchor="left", pad=dict(l=2),
-        ),
-        showlegend=False,
-        xaxis=dict(
-            showgrid=True,
-            gridcolor="rgba(255,255,255,0.04)",
-            zeroline=False,
-            tickfont=dict(size=9, color="#4b5875"),
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            tickfont=dict(size=11, color="#c8d3e8"),
-        ),
-        margin=dict(l=10, r=16, t=36, b=10),
-        height=max(220, len(df) * 28),
+        **_base_layout(height=max(260, len(df) * 36)),
+        xaxis=dict(showgrid=True, gridcolor=GRID, zeroline=False, color=MUTED),
+        yaxis=dict(showgrid=False, zeroline=False, color=TEXT),
+    )
+    return fig
+
+
+def pays_bar_chart(counts: pd.Series) -> go.Figure:
+    fig = go.Figure(
+        go.Bar(
+            x=counts.index,
+            y=counts.values,
+            marker=dict(
+                color=counts.values,
+                colorscale=[[0, "#efe3d5"], [0.5, "#dba179"], [1, NAVY]],
+                showscale=False,
+                line=dict(color="#d7c8b4", width=1),
+            ),
+            hovertemplate="<b>%{x}</b><br>%{y:,} gares<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        **_base_layout(height=320),
+        xaxis=dict(showgrid=False, zeroline=False, color=TEXT),
+        yaxis=dict(showgrid=True, gridcolor=GRID, zeroline=False, color=MUTED),
+    )
+    return fig
+
+
+def latency_chart(history: list[dict]) -> go.Figure:
+    if not history:
+        fig = go.Figure()
+        fig.update_layout(**_base_layout(height=260))
+        return fig
+
+    df = pd.DataFrame(history)
+    marker_colors = [OK if ok else DANGER for ok in df["ok"]]
+    average = df["latency_ms"].mean()
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=df["ts"],
+            y=df["latency_ms"],
+            mode="lines",
+            line=dict(color=GREEN, width=3, shape="spline", smoothing=0.45),
+            fill="tozeroy",
+            fillcolor="rgba(23,73,54,0.08)",
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=df["ts"],
+            y=df["latency_ms"],
+            mode="markers",
+            marker=dict(color=marker_colors, size=8, line=dict(color=CREAM, width=1.2)),
+            hovertemplate="<b>%{x|%H:%M:%S}</b><br>%{y:.0f} ms<extra></extra>",
+            showlegend=False,
+        )
+    )
+    fig.add_hline(y=average, line_dash="dot", line_color="#b6c7c1", line_width=1.5)
+    fig.update_layout(
+        **_base_layout(height=300),
+        xaxis=dict(showgrid=False, zeroline=False, tickformat="%H:%M:%S", color=MUTED),
+        yaxis=dict(showgrid=True, gridcolor=GRID, zeroline=False, title=None, color=MUTED),
     )
     return fig

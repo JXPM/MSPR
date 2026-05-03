@@ -1,962 +1,998 @@
+"""Shell principal du dashboard ObRail Europe."""
+
+import importlib
+
 import streamlit as st
-import streamlit.components.v1 as components
-import pandas as pd
-import base64
 
-from services.api_service import (
-    get_gares,
-    get_emissions,
-    get_operateurs,
-    get_pays_count,
-    get_trajets_count,
-    get_gares_count,
-    get_lignes_count,
-    get_trajets_map,
-    get_trajets_type,
-)
-from components.charts import operateurs_chart, trajets_jour_nuit_chart, co2_chart
-from components.map import railway_map
+from components.icons import lucide
 
-
-def icon_svg(name: str, color: str = "#c8d3e8", size: int = 20) -> str:
-    paths = {
-        "menu": '<line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="20" y2="18"></line>',
-        "train": '<line x1="8" y1="3" x2="16" y2="3"></line><line x1="12" y1="3" x2="12" y2="1.8"></line><path d="M6 5h12a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a2 2 0 0 1 2-2z"></path><line x1="8" y1="9" x2="10.7" y2="9"></line><line x1="13.3" y1="9" x2="16" y2="9"></line><circle cx="8" cy="14.2" r="1.2"></circle><circle cx="16" cy="14.2" r="1.2"></circle><line x1="7" y1="19" x2="5" y2="22"></line><line x1="17" y1="19" x2="19" y2="22"></line><line x1="8.5" y1="20.5" x2="15.5" y2="20.5"></line>',
-        "business": '<rect x="4" y="5" width="7" height="15" rx="1"></rect><rect x="13" y="3" width="7" height="17" rx="1"></rect><line x1="6" y1="8" x2="9" y2="8"></line><line x1="6" y1="11" x2="9" y2="11"></line><line x1="15" y1="6" x2="18" y2="6"></line><line x1="15" y1="9" x2="18" y2="9"></line>',
-        "route": '<circle cx="5" cy="18" r="2"></circle><circle cx="12" cy="6" r="2"></circle><circle cx="19" cy="18" r="2"></circle><path d="M6.5 16.5 L10.5 8.2 L17.5 16.5"></path>',
-        "globe": '<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M6.5 10.2l1.8-.9 1.4.8 1.2-.5 1.5 1.2-.6 1.4-1.8.7-.8 1.5-2.1-.3-1.1-1.4z"></path><path d="M13.5 9.8l1.6-.8 1.6.6 1.1 1.5-.6 1.7-1.8.6-1.6-.6-.8-1.5z"></path>',
-        "flag": '<line x1="6" y1="3" x2="6" y2="21"></line><path d="M6 4h11l-2.3 3L17 10H6z"></path>',
-        "place": '<path d="M12 21s-6-5-6-10a6 6 0 0 1 12 0c0 5-6 10-6 10z"></path><circle cx="12" cy="11" r="2"></circle>',
-        "flight": '<path d="M3 13l8-2 8-7 2 2-7 8-2 8-2-2 2-7-7 0z"></path>',
-        "balance": '<line x1="12" y1="4" x2="12" y2="19"></line><line x1="5" y1="7" x2="19" y2="7"></line><path d="M5 7l-3 5h6z"></path><path d="M19 7l-3 5h6z"></path><line x1="8" y1="19" x2="16" y2="19"></line>',
-        "eco": '<path d="M20 4c-8 0-13 4-13 11 0 3 2 5 5 5 7 0 11-5 11-13 0-2-1-3-3-3z"></path><path d="M9 15c2-2 5-4 9-5"></path>',
-        "verified": '<circle cx="12" cy="12" r="9"></circle><path d="M8 12l2.5 2.5L16 9"></path>',
-        "warning": '<path d="M12 3l9 17H3z"></path><line x1="12" y1="9" x2="12" y2="13"></line><circle cx="12" cy="17" r="1"></circle>',
-        "copy": '<rect x="8" y="8" width="11" height="12" rx="1"></rect><rect x="5" y="4" width="11" height="12" rx="1"></rect>',
-        "storage": '<ellipse cx="12" cy="6" rx="7" ry="3"></ellipse><path d="M5 6v10c0 1.7 3.1 3 7 3s7-1.3 7-3V6"></path><path d="M5 11c0 1.7 3.1 3 7 3s7-1.3 7-3"></path>',
-    }
-    content = paths.get(name, paths["verified"])
-    svg = (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
-        'viewBox="0 0 24 24" fill="none" '
-        f'stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'
-        f"{content}</svg>"
-    )
-    encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
-    return (
-        f'<img src="data:image/svg+xml;base64,{encoded}" '
-        f'width="{size}" height="{size}" '
-        'style="display:inline-block;vertical-align:middle;" />'
-    )
-
-
-# ══════════════════════════════════════════════════════════════
-# PAGE CONFIG
-# ══════════════════════════════════════════════════════════════
 
 st.set_page_config(
     page_title="ObRail Europe",
-    page_icon="🚄",
+    page_icon="🚆",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
-# ══════════════════════════════════════════════════════════════
-# INITIALISATION SESSION STATE POUR LA SIDEBAR
-# ══════════════════════════════════════════════════════════════
-
-if "sidebar_open" not in st.session_state:
-    st.session_state.sidebar_open = True
-
-sidebar_class = "sidebar-visible" if st.session_state.sidebar_open else "sidebar-hidden"
-
-st.markdown(f"""
-<div class="{sidebar_class}">
-</div>
-""", unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════
-# NAVIGATION STATE
-# ══════════════════════════════════════════════════════════════
-
-PAGES = ["Aperçu", "Réseau", "Impact Environnemental", "Qualité des Données"]
-
-if "page" not in st.session_state:
-    st.session_state.page = "Aperçu"
-
-
-# ══════════════════════════════════════════════════════════════
-# GLOBAL STYLES + SIDEBAR TOGGLE CSS
-# ══════════════════════════════════════════════════════════════
-
 st.html("""
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stApp"] {
-        background: #080c14 !important;
-        font-family: 'DM Sans', sans-serif;
-        color: #c8d3e8;
-    }
+:root {
+    --bg: #f6f1e8;
+    --bg-2: #efe7db;
+    --surface: rgba(255,255,255,0.72);
+    --surface-strong: #fffdfa;
+    --border: #dfd3c2;
+    --text: #143d35;
+    --muted: #4f6b62;
+    --muted-2: #6d877f;
+    --green: #174936;
+    --green-2: #255845;
+    --green-soft: rgba(23,73,54,0.08);
+    --navy: #1d2a53;
+    --navy-soft: rgba(29,42,83,0.10);
+    --accent: #c95f37;
+    --accent-soft: rgba(234,125,87,0.12);
+    --ok: #1f6e4e;
+    --warn: #d68740;
+    --danger: #b94d4d;
+    --shadow: 0 18px 44px rgba(27, 45, 38, 0.10);
+}
 
-    /* Masquage des éléments Streamlit par défaut */
-    #MainMenu, footer, header,
-    [data-testid="stDecoration"] { display: none !important; }
+html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+    background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.75), transparent 30%),
+        linear-gradient(180deg, #faf7f1 0%, var(--bg) 100%) !important;
+    color: var(--text);
+    font-family: 'Inter', sans-serif !important;
+}
 
-    /* Styles Sidebar */
-    [data-testid="stSidebar"] {
-        background: #0b1018 !important;
-        border-right: 1px solid rgba(255,255,255,0.05) !important;
-        min-width: 220px !important;
-        max-width: 220px !important;
-        transition: margin-left 0.3s ease;
-    }
-    [data-testid="stSidebar"] > div:first-child { padding: 0 !important; }
+*, *::before, *::after { box-sizing: border-box; }
+#MainMenu, header, footer, [data-testid="stDecoration"], [data-testid="stSidebar"] { display: none !important; }
+[data-testid="stMainBlockContainer"] { padding: 0 2rem 2rem !important; max-width: 1440px !important; margin: 0 auto !important; }
+.block-container { padding-top: 0 !important; }
 
-    [data-testid="stMainBlockContainer"] {
-        padding: 0 1.5rem 1.5rem !important;
-        max-width: 100% !important;
-    }
-    .block-container { padding-top: 0 !important; }
+:focus-visible {
+    outline: 2px solid var(--green) !important;
+    outline-offset: 3px !important;
+    border-radius: 6px;
+}
+.stButton > button:focus-visible {
+    outline-offset: 4px !important;
+}
 
-    /* Toggle Sidebar */
-    .sidebar-hidden [data-testid="stSidebar"] {
-        margin-left: -220px !important;
-    }
-    .sidebar-visible [data-testid="stSidebar"] {
-        margin-left: 0px !important;
-    }
+.shell-brand-marker { display: none; }
+[data-testid="stHorizontalBlock"]:has(.shell-brand-marker) {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    margin: 0 -2rem 1.75rem !important;
+    padding: 0.75rem 2rem !important;
+    background: rgba(248, 243, 235, 0.92) !important;
+    backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(223,211,194,0.8);
+    align-items: center !important;
+    gap: 0.6rem !important;
+}
+[data-testid="stHorizontalBlock"]:has(.shell-brand-marker) [data-testid="stColumn"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+[data-testid="stHorizontalBlock"]:has(.shell-brand-marker) [data-testid="stColumn"]:first-child {
+    justify-content: flex-start !important;
+}
+[data-testid="stHorizontalBlock"]:has(.shell-brand-marker) .stButton {
+    margin: 0 !important;
+}
+[data-testid="stHorizontalBlock"]:has(.shell-brand-marker) .stButton > button {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.88rem !important;
+    min-height: 0 !important;
+    height: 40px !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.45rem !important;
+}
+[data-testid="stHorizontalBlock"]:has(.shell-brand-marker) .stButton > button p {
+    margin: 0 !important;
+    line-height: 1 !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+}
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+.brand__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1c543f 0%, #143d35 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f7efe4;
+    font-size: 1.15rem;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+.brand__name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.85rem;
+    line-height: 0.9;
+    color: var(--text);
+}
+.brand__sub {
+    margin-top: 0.12rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
 
-    /* Topbar */
-    .topbar {
-        display:flex; 
-        align-items:center; 
-        padding:13px 0;
-        border-bottom:1px solid rgba(255,255,255,0.05); 
-        margin-bottom:14px;
-    }
+.hero {
+    padding: 1rem 0 2rem;
+}
+.eyebrow {
+    font-size: 0.8rem;
+    letter-spacing: 0.38em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 0.6rem;
+}
+.hero h1 {
+    margin: 0;
+    color: var(--text);
+    font-family: 'Cormorant Garamond', serif !important;
+    font-size: clamp(3.2rem, 6vw, 5rem);
+    line-height: 0.9;
+    font-weight: 600 !important;
+}
+.hero p {
+    max-width: 900px;
+    font-size: 1.12rem;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 1rem 0 0;
+}
+.hero code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: rgba(255,255,255,0.55);
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    color: var(--green);
+}
 
-    .topbar button {
-        background: transparent !important;
-        border: none !important;
-        font-size: 1.4rem !important;
-        cursor: pointer;
-        padding: 4px 8px;
-        margin-right: 8px;
-        color: #4b5875;
-        transition: color 0.2s;
-    }
-    .topbar button:hover {
-        color: #c8d3e8;
-    }
+.glass-card, .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+}
+.panel {
+    padding: 1.35rem;
+    margin-bottom: 1rem;
+}
+.section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 1rem;
+}
+.section-title__label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.section-title__meta {
+    color: var(--muted);
+    font-size: 0.92rem;
+}
 
-    /* Autres styles existants */
-    .kpi-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-        margin-bottom: 14px;
-    }
-    .kpi-card {
-        background: #0d1422;
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 13px 15px;
-        display: flex; align-items: center; gap: 13px;
-        transition: border-color .2s, transform .2s;
-    }
-    .kpi-card:hover { border-color: rgba(16,185,129,.3); transform: translateY(-1px); }
-    .kpi-icon-box {
-        width: 44px; height: 44px; border-radius: 11px;
-        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .kpi-body { flex: 1; min-width: 0; }
-    .kpi-label {
-        font-size:.62rem; font-weight:600; color:#4b5875;
-        text-transform:uppercase; letter-spacing:.1em; margin-bottom:1px;
-    }
-    .kpi-value {
-        font-size:1.55rem; font-weight:700; color:#f0f4ff;
-        letter-spacing:-.04em; font-family:'DM Mono',monospace; line-height:1.1;
-    }
-    .kpi-delta-up   { font-size:.65rem; font-weight:500; color:#10b981; margin-top:2px; }
-    .kpi-delta-mute { font-size:.65rem; font-weight:500; color:#4b5875;  margin-top:2px; }
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0 0 1.25rem;
+}
+.kpi-card {
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 1.1rem 1.2rem;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+}
+.kpi-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -40px -40px auto;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255,255,255,0), rgba(23,73,54,0.05));
+}
+.kpi-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,255,255,0.7);
+    font-size: 1rem;
+}
+.kpi-icon-clean {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 32px;
+    height: 32px;
+    margin-bottom: 0.4rem;
+}
+.kpi-icon-clean svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.kpi-card--filled::after { display: none; }
+.kpi-card--filled .kpi-label { margin-top: 0.4rem; }
+.kpi-label {
+    margin-top: 0.95rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+}
+.kpi-value {
+    margin-top: 0.45rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3rem;
+    line-height: 0.95;
+    color: var(--text);
+}
+.kpi-hint {
+    margin-top: 0.45rem;
+    color: var(--muted);
+    font-size: 0.96rem;
+}
 
-    .chart-header {
-        display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;
-    }
-    .chart-title {
-        font-size:.72rem; font-weight:600; color:#c8d3e8;
-        text-transform:uppercase; letter-spacing:.08em;
-    }
-    .dots { display:flex; gap:3px; align-items:center; }
-    .dots span { width:4px; height:4px; border-radius:50%; background:#2e3d52; }
+.status-band {
+    background: linear-gradient(135deg, var(--green) 0%, #12372d 100%);
+    color: #f7efe4;
+    border-radius: 22px;
+    padding: 1.35rem 1.55rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 18px 44px rgba(20,61,53,0.18);
+}
+.status-band__eyebrow {
+    color: rgba(247,239,228,0.72);
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-size: 0.75rem;
+}
+.status-band__title {
+    margin-top: 0.45rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3rem;
+    line-height: 0.95;
+}
+.status-band__hint {
+    margin-top: 0.35rem;
+    color: rgba(247,239,228,0.72);
+    font-size: 0.98rem;
+}
 
-    [data-testid="stPlotlyChart"] > div { border-radius: 8px; overflow: hidden; }
-    div[data-testid="stPlotlyChart"] { margin: 0 !important; }
+.trip-hero {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1.1fr;
+    overflow: hidden;
+    border-radius: 24px;
+    margin-bottom: 1.25rem;
+}
+.trip-hero__segment {
+    min-height: 220px;
+    padding: 2rem;
+    color: #f7efe4;
+}
+.trip-hero__segment--left, .trip-hero__segment--right {
+    background: linear-gradient(135deg, #184835 0%, #12372d 100%);
+}
+.trip-hero__segment--center {
+    background: linear-gradient(135deg, #202f63 0%, #18244b 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.trip-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.34em;
+    color: rgba(247,239,228,0.58);
+    font-size: 0.76rem;
+}
+.trip-time {
+    margin-top: 0.95rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 4.6rem;
+    line-height: 0.9;
+}
+.trip-station {
+    margin-top: 0.85rem;
+    font-size: 1.45rem;
+}
+.trip-country {
+    margin-top: 0.2rem;
+    color: rgba(247,239,228,0.65);
+    font-size: 0.92rem;
+}
+.trip-duration {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3.1rem;
+    line-height: 0.95;
+}
+.trip-duration-meta {
+    margin-top: 0.6rem;
+    color: rgba(247,239,228,0.62);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+}
 
-    [data-testid="stSidebar"] .stButton > button {
-        background: transparent !important; border: none !important;
-        border-radius: 8px !important; color: #8492a6 !important;
-        font-size: .85rem !important; font-weight: 500 !important;
-        text-align: left !important; width: 100% !important;
-        padding: 9px 14px !important;
-        transition: background .15s, color .15s !important; box-shadow: none !important;
+.info-card {
+    background: rgba(255,255,255,0.82);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1.1rem 1.2rem;
+    min-height: 124px;
+}
+.info-card__label {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    font-size: 0.74rem;
+}
+.info-card__value {
+    margin-top: 0.55rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--text);
+}
+.info-card__hint {
+    margin-top: 0.45rem;
+    color: var(--muted);
+    font-size: 0.94rem;
+}
+
+.trip-card {
+    background: linear-gradient(135deg, #1a2348 0%, #182243 100%);
+    color: #f7efe4;
+    border-radius: 18px;
+    border-left: 4px solid var(--accent);
+    padding: 1.1rem 1.2rem 1rem;
+    margin-bottom: 0.95rem;
+    box-shadow: 0 14px 36px rgba(24,34,67,0.20);
+}
+.trip-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+.trip-card__id {
+    font-family: 'IBM Plex Mono', monospace;
+    color: rgba(247,239,228,0.62);
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+}
+.trip-card__badge {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #efe5d5;
+    padding: 0.22rem 0.58rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+}
+.trip-card__line {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.8rem;
+    align-items: center;
+    margin: 1.05rem 0 0.9rem;
+}
+.trip-card__time {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.55rem;
+    line-height: 0.9;
+}
+.trip-card__station {
+    margin-top: 0.3rem;
+    color: rgba(247,239,228,0.82);
+    font-size: 0.98rem;
+}
+.trip-card__duration {
+    text-align: center;
+    color: rgba(234,125,87,0.95);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9rem;
+}
+.trip-card__footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding-top: 0.95rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
+.trip-card__footer--with-cta { padding-right: 0; }
+.trip-card__footer-left { display: block; }
+.trip-card__footer span {
+    color: rgba(247,239,228,0.64);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+.trip-card__footer strong {
+    display: block;
+    margin-top: 0.35rem;
+    color: #f7efe4;
+    font-size: 1rem;
+    letter-spacing: 0;
+    font-family: 'Inter', sans-serif;
+}
+.trip-card__distance {
+    margin-top: 0.25rem;
+    color: rgba(234,125,87,0.92);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+}
+
+/* Detail button positioned INSIDE the trip card, aligned with the footer line.
+   Targeted via st.container(key="tripcard_N") which adds the .st-key-tripcard_N class. */
+[class*="st-key-tripcard_"] {
+    position: relative;
+}
+[class*="st-key-tripcard_"] .trip-card {
+    padding-bottom: 1.2rem;
+    margin-bottom: 0.95rem;
+}
+[class*="st-key-tripcard_"] .trip-card__footer--with-cta {
+    padding-right: 9rem;
+    min-height: 3.2rem;
+}
+[class*="st-key-tripcard_"] > [data-testid="stElementContainer"]:last-child {
+    position: absolute !important;
+    bottom: 1.55rem !important;
+    right: 1.4rem !important;
+    left: auto !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 5;
+}
+[class*="st-key-tripcard_"] .stButton {
+    width: auto !important;
+    margin: 0 !important;
+}
+[class*="st-key-tripcard_"] .stButton > button {
+    background: linear-gradient(135deg, #ea7d57 0%, #d56b48 100%) !important;
+    color: #f7efe4 !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    border-radius: 999px !important;
+    padding: 0.45rem 1.1rem !important;
+    width: auto !important;
+    min-width: 0 !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
+    letter-spacing: 0.04em !important;
+    line-height: 1 !important;
+    box-shadow: 0 8px 18px rgba(20,30,60,0.35) !important;
+    min-height: 0 !important;
+    height: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+}
+[class*="st-key-tripcard_"] .stButton > button:hover {
+    background: linear-gradient(135deg, #f08862 0%, #df7551 100%) !important;
+    border-color: rgba(255,255,255,0.35) !important;
+    color: #ffffff !important;
+}
+[class*="st-key-tripcard_"] .stButton > button p {
+    color: inherit !important;
+    margin: 0 !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+}
+
+.dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.4rem 0 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.2rem;
+    flex-wrap: nowrap;
+}
+.dialog-header__id {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text);
+    letter-spacing: 0.14em;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    line-height: 1.2;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.dialog-header__badge {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    line-height: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.dialog-route {
+    display: grid;
+    grid-template-columns: 1fr 0.9fr 1fr;
+    gap: 1rem;
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #184835 0%, #12372d 100%);
+    color: #f7efe4;
+    border-radius: 18px;
+    margin-bottom: 1.2rem;
+}
+.dialog-route__col { display: flex; flex-direction: column; gap: 0.35rem; }
+.dialog-route__col--center {
+    background: rgba(29,42,83,0.55);
+    border-radius: 14px;
+    padding: 0.85rem;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+}
+.dialog-route__col--right { text-align: right; align-items: flex-end; }
+.dialog-route__meta {
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    color: rgba(247,239,228,0.6);
+    font-size: 0.72rem;
+}
+.dialog-route__time {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem;
+    line-height: 1;
+}
+.dialog-route__station {
+    font-size: 1.1rem;
+    color: #f7efe4;
+}
+.dialog-route__country {
+    color: rgba(247,239,228,0.68);
+    font-size: 0.88rem;
+}
+.dialog-route__duration {
+    margin-top: 0.5rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.9rem;
+    line-height: 1;
+    color: #f7efe4;
+}
+.dialog-route__line {
+    margin-top: 0.35rem;
+    color: rgba(247,239,228,0.7);
+    font-size: 0.86rem;
+}
+
+.dialog-section-title {
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin: 1.2rem 0 0.7rem;
+}
+.city-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+.city-block {
+    background: rgba(255,255,255,0.78);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1rem 1.1rem;
+}
+.city-block__meta {
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    color: var(--muted);
+    font-size: 0.7rem;
+}
+.city-block__name {
+    margin-top: 0.4rem;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.55rem;
+    line-height: 1.05;
+    color: var(--text);
+    margin-bottom: 0.65rem;
+}
+.city-block__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+    border-top: 1px solid rgba(223,211,194,0.6);
+    font-size: 0.92rem;
+}
+.city-block__row span {
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+.city-block__row strong {
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+}
+
+.stop-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.4rem 0 0.6rem;
+    position: relative;
+}
+.stop-list::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: 18px;
+    bottom: 18px;
+    width: 2px;
+    background: linear-gradient(180deg, #174936, #ea7d57, #174936);
+    opacity: 0.45;
+}
+.stop-row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 0.85rem;
+    padding: 0.65rem 0;
+    align-items: flex-start;
+    position: relative;
+}
+.stop-row__bullet {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-top: 0.15rem;
+    z-index: 1;
+}
+.stop-row__bullet span {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ea7d57;
+    box-shadow: 0 0 0 4px var(--bg);
+}
+.stop-row--depart .stop-row__bullet span,
+.stop-row--arrivee .stop-row__bullet span {
+    width: 16px;
+    height: 16px;
+    background: #174936;
+    box-shadow: 0 0 0 4px var(--bg), inset 0 0 0 3px #f6f1e8;
+}
+.stop-row__body {
+    background: rgba(255,255,255,0.78);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.7rem 0.95rem;
+}
+.stop-row--depart .stop-row__body,
+.stop-row--arrivee .stop-row__body {
+    background: rgba(23,73,54,0.07);
+    border-color: rgba(23,73,54,0.22);
+}
+.stop-row__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+}
+.stop-row__name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.25rem;
+    color: var(--text);
+    line-height: 1.1;
+}
+.stop-row__kind {
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.68rem;
+    color: var(--muted);
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid var(--border);
+}
+.stop-row--depart .stop-row__kind,
+.stop-row--arrivee .stop-row__kind {
+    color: var(--green);
+    border-color: rgba(23,73,54,0.4);
+    background: rgba(23,73,54,0.08);
+}
+.stop-row__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 1.1rem;
+    margin-top: 0.45rem;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 760px) {
+    .dialog-route { grid-template-columns: 1fr; }
+    .city-grid { grid-template-columns: 1fr; }
+    .stop-row__head { flex-direction: column; align-items: flex-start; }
+}
+
+.map-empty {
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    border: 1px dashed var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    text-align: center;
+    padding: 2rem;
+}
+.map-empty strong {
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+}
+
+.endpoint-row {
+    display: grid;
+    grid-template-columns: 1.3fr auto auto 1fr;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid rgba(223,211,194,0.7);
+}
+.endpoint-row:last-child { border-bottom: none; }
+.endpoint-row__path {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--green);
+}
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.72rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-family: 'IBM Plex Mono', monospace;
+}
+.pill-ok { background: rgba(31,110,78,0.12); color: var(--ok); }
+.pill-warn { background: rgba(214,135,64,0.12); color: var(--warn); }
+.pill-err { background: rgba(185,77,77,0.12); color: var(--danger); }
+.pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.stButton > button {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 999px !important;
+    padding: 0.72rem 1.15rem !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.stButton > button:hover {
+    border-color: var(--green) !important;
+    color: var(--green) !important;
+    background: rgba(255,255,255,0.6) !important;
+}
+.stButton > button[kind="primary"],
+.stButton > button[data-testid*="baseButton-primary"] {
+    background: var(--green) !important;
+    color: #f7efe4 !important;
+    border-color: var(--green) !important;
+}
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid*="baseButton-primary"]:hover {
+    background: var(--green-2) !important;
+    border-color: var(--green-2) !important;
+    color: #ffffff !important;
+}
+
+.stSelectbox label, .stMultiSelect label, .stTextInput label, .stSlider label {
+    color: var(--muted) !important;
+    font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.73rem !important;
+    letter-spacing: 0.26em !important;
+    text-transform: uppercase !important;
+}
+[data-baseweb="select"] > div,
+.stTextInput > div > div {
+    border-radius: 14px !important;
+    border-color: var(--border) !important;
+    background: rgba(255,255,255,0.92) !important;
+    min-height: 52px !important;
+}
+[data-baseweb="select"] > div > div,
+[data-baseweb="select"] [data-baseweb="select-control"],
+[data-baseweb="select"] [class*="ValueContainer"],
+[data-baseweb="select"] [class*="singleValue"],
+[data-baseweb="select"] [class*="placeholder"],
+[data-baseweb="select"] span,
+[data-baseweb="select"] input {
+    color: var(--text) !important;
+}
+[data-baseweb="select"] svg { color: var(--muted) !important; }
+[data-baseweb="popover"] li,
+[data-baseweb="menu"] li,
+[data-baseweb="popover"] [role="option"] {
+    color: var(--text) !important;
+    background: #fffdfa !important;
+}
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="menu"] li:hover {
+    background: rgba(23,73,54,0.08) !important;
+    color: var(--green) !important;
+}
+
+div[data-testid="stPlotlyChart"] {
+    background: transparent !important;
+}
+div[data-testid="stPlotlyChart"] > div {
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+    .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .trip-hero { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+    [data-testid="stMainBlockContainer"] { padding: 0 1rem 2rem !important; }
+    [data-testid="stHorizontalBlock"]:has(.shell-brand-marker) {
+        margin: 0 -1rem 1rem !important;
+        padding: 0.7rem 1rem !important;
+        flex-wrap: wrap !important;
     }
-    [data-testid="stSidebar"] .stButton > button:hover {
-        background: rgba(255,255,255,.05) !important; color: #c8d3e8 !important;
-    }
-    [data-testid="stSlider"] { padding: 0 4px; }
+    .kpi-row { grid-template-columns: 1fr; }
+    .endpoint-row { grid-template-columns: 1fr; gap: 0.45rem; }
+}
 </style>
 """)
 
 
-# ══════════════════════════════════════════════════════════════
-# DATA CACHE
-# ══════════════════════════════════════════════════════════════
+PAGES = [
+    ("Trajets", ":material/route:"),
+    ("Observatoire", ":material/insights:"),
+    ("Supervision", ":material/monitor_heart:"),
+]
 
-@st.cache_data
-def load_stats():
-    return (
-        get_trajets_count()["total_trajets"],
-        get_gares_count()["total_gares"],
-        get_lignes_count()["total_lignes"],
-        get_pays_count()["total_pays"],
-    )
-
-trajets, gares, lignes, nb_pays = load_stats()
-
-@st.cache_data
-def load_gares():        return pd.DataFrame(get_gares())
-@st.cache_data
-def load_emissions():    return get_emissions()
-@st.cache_data
-def load_operateurs():   return get_operateurs()
-@st.cache_data
-def load_trajets_map():  return pd.DataFrame(get_trajets_map())
-@st.cache_data
-def load_trajets_type(): return get_trajets_type()
-
-df_gares      = load_gares()
-df_trajets    = load_trajets_map()
-emissions     = load_emissions()
-operateurs    = load_operateurs()
-trajets_type  = load_trajets_type()
-
-nb_jour = trajets_type.get("JOUR", 0)
-nb_nuit = trajets_type.get("NUIT", 0)
+if "page" not in st.session_state:
+    st.session_state.page = "Trajets"
 
 
-# ══════════════════════════════════════════════════════════════
-# SIDEBAR
-# ══════════════════════════════════════════════════════════════
-
-with st.sidebar:
-    st.html(f"""
-    <div style="padding:20px 16px 12px;display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;background:linear-gradient(135deg,#10b981,#059669);
-                    border-radius:9px;display:flex;align-items:center;justify-content:center;
-                    box-shadow:0 4px 14px rgba(16,185,129,.35);flex-shrink:0;">
-            {icon_svg("train", "white", 18)}
-        </div>
-        <div>
-            <div style="font-size:.95rem;font-weight:700;color:#f0f4ff;letter-spacing:-.02em;line-height:1.1;">ObRail</div>
-            <div style="font-size:.6rem;color:#4b5875;text-transform:uppercase;letter-spacing:.1em;font-weight:500;">Europe</div>
-        </div>
-    </div>
-    <div style="height:1px;background:rgba(255,255,255,.05);margin:0 16px 14px;"></div>
-    <div style="padding:0 12px 6px;font-size:.6rem;font-weight:700;color:#2e3d52;
-                text-transform:uppercase;letter-spacing:.14em;">Navigation</div>
-    """)
-
-    for page in PAGES:
-        if st.button(page, key=f"nav_{page}", width="stretch"):
-            st.session_state.page = page
-
-    st.html("""
-    <div style="height:1px;background:rgba(255,255,255,.05);margin:14px 16px;"></div>
-    <div style="padding:0 12px 6px;font-size:.6rem;font-weight:700;color:#2e3d52;
-                text-transform:uppercase;letter-spacing:.14em;">Filtres</div>
-    """)
-
-    st.caption("Jauge d'affichage des gares")
-    if "map_display_count" not in st.session_state:
-        st.session_state.map_display_count = min(2000, len(df_gares))
-
-    minus_col, plus_col = st.columns(2, gap="small")
-    with minus_col:
-        if st.button("− Diminuer", width="stretch"):
-            st.session_state.map_display_count = max(100, st.session_state.map_display_count - 100)
-    with plus_col:
-        if st.button("+ Augmenter", width="stretch"):
-            st.session_state.map_display_count = min(len(df_gares), st.session_state.map_display_count + 100)
-
-    current_gauge = st.slider(
-        "Nombre de gares affichées",
-        min_value=100,
-        max_value=max(100, len(df_gares)),
-        value=min(st.session_state.map_display_count, max(100, len(df_gares))),
-        step=100,
-    )
-    st.session_state.map_display_count = current_gauge
-
-    selected_countries = []
-    if "iso_pays" in df_gares.columns:
-        country_options = sorted([c for c in df_gares["iso_pays"].dropna().unique().tolist() if c])
-        selected_countries = st.multiselect(
-            "Filtrer par pays (optionnel)",
-            options=country_options,
-            default=[],
-            placeholder="Tous les pays",
-        )
-
-
-# ══════════════════════════════════════════════════════════════
-# TOPBAR AVEC BOUTON ☰ FONCTIONNEL
-# ══════════════════════════════════════════════════════════════
-
-def topbar(subtitle: str):
-    col_btn, col_title = st.columns([0.1, 0.9], gap="small")
-    
-    with col_btn:
-        if st.button("☰", key="toggle_sidebar", help="Ouvrir/Fermer la sidebar"):
-            st.session_state.sidebar_open = not st.session_state.sidebar_open
-            st.rerun()
-
-    with col_title:
+def render_shell_header() -> None:
+    cols = st.columns([2.2, 1, 1, 1, 0.4], gap="small")
+    with cols[0]:
+        train_icon = lucide("train-front", size=22, color="#f7efe4", stroke_width=1.9)
         st.html(f"""
-        <div class="topbar">
-            <span style="font-size:.95rem;font-weight:600;color:#c8d3e8;">ObRail Europe</span>
-            <span style="color:#2e3d52;margin:0 6px;">—</span>
-            <span style="font-size:.95rem;font-weight:400;color:#4b5875;">{subtitle}</span>
+        <div class="shell-brand-marker"></div>
+        <div class="brand">
+          <div class="brand__icon">{train_icon}</div>
+          <div>
+            <div class="brand__name">ObRail</div>
+            <div class="brand__sub">Europe</div>
+          </div>
         </div>
         """)
-
-
-current_page = st.session_state.page
-
-if selected_countries and "iso_pays" in df_gares.columns:
-    df_map_base = df_gares[df_gares["iso_pays"].isin(selected_countries)].copy()
-else:
-    df_map_base = df_gares.copy()
-
-target_count = min(st.session_state.get("map_display_count", 1200), len(df_map_base))
-df_map = df_map_base.sample(target_count, random_state=42) if target_count > 0 else df_map_base
-
-df_trajets_map = df_trajets.sample(1000, random_state=42) if len(df_trajets) > 1000 else df_trajets
-
-# ══════════════════════════════════════════════════════════════
-# PAGE: APERÇU
-# ══════════════════════════════════════════════════════════════
-
-if current_page == "Aperçu":
-
-    topbar("Railway Data Dashboard")
-
-    st.html(f"""
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(16,185,129,.12);">
-                {icon_svg("train", "#10b981", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Trajets</div>
-                <div class="kpi-value">{trajets:,}</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(59,130,246,.12);">
-                {icon_svg("business", "#3b82f6", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Opérateurs</div>
-                <div class="kpi-value">{len(operateurs)}</div>
-                <div class="kpi-delta-mute">Actifs en Europe</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(245,158,11,.12);">
-                {icon_svg("route", "#f59e0b", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Lignes</div>
-                <div class="kpi-value">{lignes:,}</div>
-                <div class="kpi-delta-mute">Réseau actif</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(167,139,250,.12);">
-                {icon_svg("flag", "#a78bfa", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Pays couverts</div>
-                <div class="kpi-value">{nb_pays}</div>
-                <div class="kpi-delta-mute">Europe entière</div>
-            </div>
-        </div>
-    </div>
-    """)
-
-    col_left, col_right = st.columns([1, 1.65], gap="small")
-
-    with col_left:
-        st.html("""
-        <div class="chart-header">
-            <span class="chart-title">Trajets Jour vs Nuit</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        st.plotly_chart(
-            trajets_jour_nuit_chart(nb_jour, nb_nuit),
-            width="stretch",
-            config={"displayModeBar": False},
-        )
-
-        st.html("""
-        <div class="chart-header" style="margin-top:4px;">
-            <span class="chart-title">Impact Environnemental</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        st.plotly_chart(
-            co2_chart(emissions),
-            width="stretch",
-            config={"displayModeBar": False},
-        )
-
-    with col_right:
-        st.html("""
-        <div class="chart-header">
-            <span class="chart-title">Réseau Ferroviaire Européen</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        st.plotly_chart(
-            railway_map(df_map, df_trajets_map),
-            width="stretch",
-            config={
-                "scrollZoom": True,
-                "displayModeBar": True,
-                "modeBarButtonsToRemove": ["select2d", "lasso2d", "toImage", "sendDataToCloud"],
-                "displaylogo": False,
-            },
-        )
-
-        col_qual, col_ops = st.columns([1, 1], gap="small")
-
-        with col_qual:
-            missing      = int(df_gares.isnull().sum().sum())
-            total_cells  = int(df_gares.size)
-            missing_rate = round(missing / total_cells * 100, 1) if total_cells > 0 else 0
-            duplicates   = int(df_gares.duplicated().sum())
-            dup_pct      = round(duplicates / len(df_gares) * 100, 1) if len(df_gares) > 0 else 0
-            op_miss      = int(round(missing_rate * 0.55))
-            em_miss      = int(round(missing_rate * 0.45))
-            dup_color    = "#f59e0b" if dup_pct > 0 else "#10b981"
-
-            components.html(f"""
-<!DOCTYPE html><html><head>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:transparent;font-family:'DM Sans',sans-serif}}
-.card{{background:#0d1422;border:1px solid rgba(255,255,255,.06);border-radius:12px;
-       padding:14px 16px;display:flex;flex-direction:column;gap:10px;height:210px}}
-.hd{{display:flex;align-items:center;justify-content:space-between}}
-.title{{font-size:.68rem;font-weight:600;color:#c8d3e8;text-transform:uppercase;letter-spacing:.08em}}
-.dots{{display:flex;gap:3px}}
-.dot{{width:4px;height:4px;border-radius:50%;background:#2e3d52}}
-.sub{{font-size:.58rem;color:#4b5875;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:7px}}
-.row{{display:flex;align-items:center;gap:16px;margin-bottom:5px}}
-.item{{display:flex;align-items:center;gap:5px}}
-.dg{{width:8px;height:8px;border-radius:50%;background:#10b981;flex-shrink:0}}
-.db{{width:8px;height:8px;border-radius:50%;background:#3b82f6;flex-shrink:0}}
-.val{{font-size:1.05rem;font-weight:700;color:#f0f4ff;font-family:'DM Mono',monospace}}
-.bars{{margin-left:auto;display:flex;gap:3px;align-items:flex-end;height:20px}}
-.leg{{display:flex;gap:14px}}
-.li{{font-size:.58rem;color:#4b5875}}
-.div{{height:1px;background:rgba(255,255,255,.04)}}
-.bot{{display:flex;justify-content:space-between;align-items:flex-end}}
-.big{{font-size:1.1rem;font-weight:700;color:#f0f4ff;font-family:'DM Mono',monospace;letter-spacing:-.03em}}
-.s2{{font-size:.58rem;color:#4b5875;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-top:2px}}
-</style></head><body>
-<div class="card">
-  <div class="hd">
-    <div class="title">Qualité des Données</div>
-    <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-  </div>
-  <div>
-    <div class="sub">Valeurs Manquantes</div>
-    <div class="row">
-      <div class="item"><div class="dg"></div><span class="val">{op_miss}%</span></div>
-      <div class="item"><div class="db"></div><span class="val">{em_miss}%</span></div>
-      <div class="bars">
-        <div style="width:12px;height:18px;background:#3b82f6;border-radius:2px;opacity:.8"></div>
-        <div style="width:8px;height:12px;background:#3b82f6;border-radius:2px;opacity:.5"></div>
-        <div style="width:6px;height:8px;background:#8492a6;border-radius:2px;opacity:.3"></div>
-        <div style="width:5px;height:5px;background:#8492a6;border-radius:2px;opacity:.2"></div>
-      </div>
-    </div>
-    <div class="leg">
-      <span class="li">● Opérateur</span>
-      <span class="li">● Émission</span>
-    </div>
-  </div>
-  <div class="div"></div>
-  <div class="bot">
-    <div>
-      <div class="big">{len(df_gares):,}</div>
-      <div class="s2">Lignes au total</div>
-    </div>
-    <div style="text-align:right">
-      <div style="display:flex;align-items:baseline;gap:3px;justify-content:flex-end">
-        <span style="font-size:.62rem;color:#4b5875">x%</span>
-        <span style="font-size:1.1rem;font-weight:700;color:{dup_color};font-family:'DM Mono',monospace">{dup_pct}%</span>
-      </div>
-      <div class="s2">Doublons</div>
-    </div>
-  </div>
-</div>
-</body></html>""", height=220)
-
-        with col_ops:
-            st.plotly_chart(
-                operateurs_chart(operateurs),
+    active_page = st.session_state.page
+    for idx, (label, icon) in enumerate(PAGES, start=1):
+        with cols[idx]:
+            is_active = label == active_page
+            if st.button(
+                f"{icon} {label}",
+                key=f"nav_{label}",
                 width="stretch",
-                config={"displayModeBar": False},
-            )
+                type="primary" if is_active else "secondary",
+            ):
+                st.session_state.page = label
+                st.rerun()
 
 
-# ══════════════════════════════════════════════════════════════
-# PAGE: RÉSEAU
-# ══════════════════════════════════════════════════════════════
-
-elif current_page == "Réseau":
-
-    topbar("Réseau Ferroviaire")
-
+def page_hero(eyebrow: str, title: str, description: str) -> None:
     st.html(f"""
-    <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(16,185,129,.12);">
-                {icon_svg("place", "#10b981", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Gares référencées</div>
-                <div class="kpi-value">—</div>
-                <div class="kpi-delta-mute">Coordonnées GPS</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(59,130,246,.12);">
-                {icon_svg("route", "#3b82f6", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Segments cartographiés</div>
-                <div class="kpi-value">1 000+</div>
-                <div class="kpi-delta-mute">Tronçons inter-gares</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(245,158,11,.12);">
-                {icon_svg("flag", "#f59e0b", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Pays couverts</div>
-                <div class="kpi-value">{nb_pays}</div>
-                <div class="kpi-delta-mute">Europe entière</div>
-            </div>
-        </div>
-    </div>
+    <section class="hero">
+      <div class="eyebrow">{eyebrow}</div>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </section>
     """)
 
-    st.html("""
-    <div class="chart-header">
-        <span class="chart-title">Carte complète du réseau</span>
-        <div class="dots"><span></span><span></span><span></span></div>
-    </div>""")
 
-    df_full_map = df_gares.sample(min(3000, len(df_gares)), random_state=1)
-    st.plotly_chart(
-        railway_map(df_full_map, df_trajets_map),
-        width="stretch",
-        config={"scrollZoom": True, "displayModeBar": True, "displaylogo": False},
-    )
-
-    if not df_gares.empty and "iso_pays" in df_gares.columns:
-        st.html("""
-        <div class="chart-header" style="margin-top:10px;">
-            <span class="chart-title">Répartition des gares par pays</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        import plotly.graph_objects as go
-        pays_counts = df_gares["iso_pays"].value_counts().head(15)
-        fig_pays = go.Figure(go.Bar(
-            x=pays_counts.index,
-            y=pays_counts.values,
-            marker=dict(
-                color=pays_counts.values,
-                colorscale=[[0, "#0ea5e9"], [1, "#10b981"]],
-                showscale=False, line_width=0,
-            ),
-            hovertemplate="<b>%{x}</b><br>%{y} gares<extra></extra>",
-        ))
-        fig_pays.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="DM Sans", color="#8492a6"),
-            xaxis=dict(showgrid=False, tickfont=dict(color="#c8d3e8", size=11)),
-            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", zeroline=False,
-                       tickfont=dict(color="#4b5875", size=10)),
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=260,
-        )
-        st.plotly_chart(fig_pays, width="stretch", config={"displayModeBar": False})
+ROUTES = {
+    "Trajets": (
+        "_pages.trajets",
+        "Exploration · 01",
+        "Trajets",
+        "Consultation des dessertes ferroviaires europeennes recensees dans l'entrepot unifie. Filtrez par ville, type de service, operateur ou ligne.",
+    ),
+    "Observatoire": (
+        "_pages.observatoire",
+        "Analyse · 02",
+        "Observatoire",
+        "Vue d'ensemble du reseau ObRail: densite du maillage, poids des operateurs et lecture environnementale du rail europeen.",
+    ),
+    "Supervision": (
+        "_pages.supervision",
+        "Observabilite · 03",
+        "Supervision",
+        "Surveillance en temps reel de l'API ObRail. Une sonde /health est emise toutes les 10 secondes pour suivre la disponibilite et la latence.",
+    ),
+}
 
 
-# ══════════════════════════════════════════════════════════════
-# PAGE: IMPACT ENVIRONNEMENTAL
-# ══════════════════════════════════════════════════════════════
+render_shell_header()
 
-elif current_page == "Impact Environnemental":
+module_path, eyebrow, title, description = ROUTES[st.session_state.page]
+page_hero(eyebrow, title, description)
 
-    topbar("Impact Environnemental")
-
-    train_val = round(float(emissions.get("train") or 0))
-    avion_val = round(float(emissions.get("avion") or 0))
-    saved     = max(0, avion_val - train_val)
-    ratio     = round(avion_val / train_val, 1) if train_val > 0 else 0
-    total_saved = saved * trajets
-
-    st.html(f"""
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(16,185,129,.12);">
-                {icon_svg("train", "#10b981", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">CO₂ moyen / trajet train</div>
-                <div class="kpi-value">{train_val:,} kg</div>
-                <div class="kpi-delta-mute">8 kg CO₂ / 100 km</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(249,115,22,.12);">
-                {icon_svg("flight", "#f97316", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">CO₂ moyen / trajet avion</div>
-                <div class="kpi-value">{avion_val:,} kg</div>
-                <div class="kpi-delta-mute">54 kg CO₂ / 100 km</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(167,139,250,.12);">
-                {icon_svg("balance", "#a78bfa", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Rapport avion / train</div>
-                <div class="kpi-value">{ratio}×</div>
-                <div class="kpi-delta-mute">Plus polluant en avion</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(16,185,129,.12);">
-                {icon_svg("eco", "#10b981", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">CO₂ économisé (total)</div>
-                <div class="kpi-value">{total_saved:,}</div>
-                <div class="kpi-delta-up">↓ kg vs scénario tout-avion</div>
-            </div>
-        </div>
-    </div>
-    """)
-
-    import plotly.graph_objects as go
-
-    col1, col2 = st.columns(2, gap="small")
-
-    with col1:
-        st.html("""
-        <div class="chart-header">
-            <span class="chart-title">Émissions CO₂ : Train vs Avion</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        st.plotly_chart(
-            co2_chart(emissions),
-            width="stretch",
-            config={"displayModeBar": False},
-        )
-
-    with col2:
-        st.html("""
-        <div class="chart-header">
-            <span class="chart-title">Économies CO₂ par opérateur</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-
-        if operateurs:
-            df_ops = pd.DataFrame(operateurs).sort_values("trajets", ascending=False).head(8)
-            df_ops["co2_saved"] = df_ops["trajets"] * saved
-            fig_eco = go.Figure(go.Bar(
-                x=df_ops["operateur"],
-                y=df_ops["co2_saved"],
-                marker=dict(
-                    color=df_ops["co2_saved"],
-                    colorscale=[[0, "#059669"], [1, "#10b981"]],
-                    showscale=False, line_width=0, cornerradius=4,
-                ),
-                hovertemplate="<b>%{x}</b><br>%{y:,.0f} kg CO₂ économisés<extra></extra>",
-            ))
-            fig_eco.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="DM Sans", color="#8492a6"),
-                xaxis=dict(showgrid=False, tickfont=dict(color="#c8d3e8", size=10),
-                           tickangle=-30),
-                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)",
-                           zeroline=False, tickfont=dict(color="#4b5875", size=10)),
-                margin=dict(l=10, r=10, t=10, b=60),
-                height=300,
-            )
-            st.plotly_chart(fig_eco, width="stretch", config={"displayModeBar": False})
-
-    st.html("""
-    <div class="chart-header" style="margin-top:10px;">
-        <span class="chart-title">Répartition Jour vs Nuit — Impact CO₂</span>
-        <div class="dots"><span></span><span></span><span></span></div>
-    </div>""")
-
-    col3, col4 = st.columns(2, gap="small")
-    with col3:
-        st.plotly_chart(
-            trajets_jour_nuit_chart(nb_jour, nb_nuit),
-            width="stretch",
-            config={"displayModeBar": False},
-        )
-    with col4:
-        co2_jour = nb_jour * train_val
-        co2_nuit = nb_nuit * train_val
-        fig_jn = go.Figure(go.Bar(
-            x=["Trains de jour", "Trains de nuit"],
-            y=[co2_jour, co2_nuit],
-            marker=dict(
-                color=["#10b981", "#3b82f6"], line_width=0, cornerradius=4,
-            ),
-            text=[f"{co2_jour:,} kg", f"{co2_nuit:,} kg"],
-            textposition="outside",
-            textfont=dict(color="#c8d3e8", size=11),
-            hovertemplate="<b>%{x}</b><br>%{y:,.0f} kg CO₂ total<extra></extra>",
-        ))
-        fig_jn.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="DM Sans", color="#8492a6"),
-            xaxis=dict(showgrid=False, tickfont=dict(color="#c8d3e8", size=12)),
-            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)",
-                       zeroline=False, showticklabels=False,
-                       range=[0, max(co2_jour, co2_nuit) * 1.2 or 1]),
-            margin=dict(l=10, r=10, t=30, b=10),
-            height=300,
-            showlegend=False,
-        )
-        st.plotly_chart(fig_jn, width="stretch", config={"displayModeBar": False})
-
-
-# ══════════════════════════════════════════════════════════════
-# PAGE: QUALITÉ DES DONNÉES
-# ══════════════════════════════════════════════════════════════
-
-elif current_page == "Qualité des Données":
-
-    topbar("Qualité des Données")
-
-    missing_total = int(df_gares.isnull().sum().sum())
-    total_cells   = int(df_gares.size)
-    missing_rate  = round(missing_total / total_cells * 100, 2) if total_cells > 0 else 0
-    dup_count     = int(df_gares.duplicated().sum())
-    dup_pct_q     = round(dup_count / len(df_gares) * 100, 2) if len(df_gares) > 0 else 0
-    completeness  = round(100 - missing_rate, 1)
-
-    st.html(f"""
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(16,185,129,.12);">
-                {icon_svg("verified", "#10b981", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Complétude globale</div>
-                <div class="kpi-value">{completeness}%</div>
-                <div class="kpi-delta-up">Taux de remplissage</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(249,115,22,.12);">
-                {icon_svg("warning", "#f97316", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Valeurs manquantes</div>
-                <div class="kpi-value">{missing_total:,}</div>
-                <div class="kpi-delta-mute">{missing_rate}% des cellules</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(245,158,11,.12);">
-                {icon_svg("copy", "#f59e0b", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Doublons détectés</div>
-                <div class="kpi-value">{dup_count:,}</div>
-                <div class="kpi-delta-mute">{dup_pct_q}% du jeu de données</div>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon-box" style="background:rgba(59,130,246,.12);">
-                {icon_svg("storage", "#3b82f6", 20)}
-            </div>
-            <div class="kpi-body">
-                <div class="kpi-label">Enregistrements totaux</div>
-                <div class="kpi-value">{len(df_gares):,}</div>
-                <div class="kpi-delta-mute">Table gares</div>
-            </div>
-        </div>
-    </div>
-    """)
-
-    import plotly.graph_objects as go
-
-    col_a, col_b = st.columns(2, gap="small")
-    quality_cols_df = df_gares.drop(columns=["latitude", "longitude"], errors="ignore")
-
-    with col_a:
-        st.html("""
-        <div class="chart-header">
-            <span class="chart-title">Valeurs manquantes par colonne</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        missing_by_col = quality_cols_df.isnull().sum()
-        missing_by_col = missing_by_col[missing_by_col > 0].sort_values(ascending=True)
-        if not missing_by_col.empty:
-            fig_miss = go.Figure(go.Bar(
-                x=missing_by_col.values,
-                y=missing_by_col.index,
-                orientation="h",
-                marker=dict(
-                    color=missing_by_col.values,
-                    colorscale=[[0, "#f59e0b"], [1, "#f97316"]],
-                    showscale=False, line_width=0, cornerradius=3,
-                ),
-                hovertemplate="<b>%{y}</b><br>%{x} valeurs manquantes<extra></extra>",
-            ))
-            fig_miss.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(family="DM Sans", color="#8492a6"),
-                xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)",
-                           zeroline=False, tickfont=dict(color="#4b5875", size=10)),
-                yaxis=dict(showgrid=False, zeroline=False,
-                           tickfont=dict(color="#c8d3e8", size=12)),
-                margin=dict(l=10, r=10, t=10, b=10),
-                height=280,
-            )
-            st.plotly_chart(fig_miss, width="stretch", config={"displayModeBar": False})
-        else:
-            st.html(f"""
-            <div style="background:#0d1422;border:1px solid rgba(255,255,255,.06);
-                        border-radius:12px;padding:40px;text-align:center;color:#10b981;">
-                <span style="display:block;margin-bottom:8px;">{icon_svg("verified", "#10b981", 36)}</span>
-                Aucune valeur manquante détectée
-            </div>""")
-
-    with col_b:
-        st.html("""
-        <div class="chart-header">
-            <span class="chart-title">Taux de complétude par colonne</span>
-            <div class="dots"><span></span><span></span><span></span></div>
-        </div>""")
-        completeness_by_col = ((1 - quality_cols_df.isnull().mean()) * 100).round(1).sort_values()
-        fig_comp = go.Figure(go.Bar(
-            x=completeness_by_col.values,
-            y=completeness_by_col.index,
-            orientation="h",
-            marker=dict(
-                color=completeness_by_col.values,
-                colorscale=[[0, "#f97316"], [0.5, "#f59e0b"], [1, "#10b981"]],
-                showscale=False, line_width=0, cornerradius=3,
-                cmin=0, cmax=100,
-            ),
-            text=[f"{v}%" for v in completeness_by_col.values],
-            textposition="outside",
-            textfont=dict(color="#8492a6", size=10),
-            hovertemplate="<b>%{y}</b><br>%{x:.1f}% complet<extra></extra>",
-        ))
-        fig_comp.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="DM Sans", color="#8492a6"),
-            xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)",
-                       zeroline=False, tickfont=dict(color="#4b5875", size=10),
-                       range=[0, 115]),
-            yaxis=dict(showgrid=False, zeroline=False,
-                       tickfont=dict(color="#c8d3e8", size=12)),
-            margin=dict(l=10, r=10, t=10, b=10),
-            height=280,
-        )
-        st.plotly_chart(fig_comp, width="stretch", config={"displayModeBar": False})
-
-    st.html("""
-    <div class="chart-header" style="margin-top:10px;">
-        <span class="chart-title">Couverture géographique (gares avec coordonnées GPS)</span>
-        <div class="dots"><span></span><span></span><span></span></div>
-    </div>""")
-
-    df_with_coords    = df_gares.dropna(subset=["latitude", "longitude"])
-    df_without_coords = df_gares[df_gares["latitude"].isna() | df_gares["longitude"].isna()]
-    pct_with    = round(len(df_with_coords) / len(df_gares) * 100, 1) if len(df_gares) > 0 else 0
-    pct_without = round(100 - pct_with, 1)
-
-    col_c, col_d = st.columns([2, 1], gap="small")
-    with col_c:
-        df_geo_sample = df_with_coords.sample(min(2000, len(df_with_coords)), random_state=42)
-        st.plotly_chart(
-            railway_map(df_geo_sample, pd.DataFrame()),
-            width="stretch",
-            config={"scrollZoom": True, "displayModeBar": False},
-        )
-    with col_d:
-        components.html(f"""
-<!DOCTYPE html><html><head>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:transparent;font-family:'DM Sans',sans-serif;color:#c8d3e8}}
-.card{{background:#0d1422;border:1px solid rgba(255,255,255,.06);border-radius:12px;
-       padding:16px;display:flex;flex-direction:column;gap:14px;height:100%}}
-.row{{display:flex;justify-content:space-between;align-items:center;padding:10px 0;
-      border-bottom:1px solid rgba(255,255,255,.04)}}
-.lbl{{font-size:.65rem;color:#4b5875;text-transform:uppercase;letter-spacing:.08em}}
-.val{{font-size:1.05rem;font-weight:700;font-family:'DM Mono',monospace}}
-.bar-bg{{height:6px;background:rgba(255,255,255,.06);border-radius:3px;margin-top:6px}}
-.bar-fill{{height:6px;border-radius:3px;background:#10b981}}
-</style></head><body>
-<div class="card">
-  <div style="font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#c8d3e8">
-    Couverture GPS
-  </div>
-  <div class="row">
-    <div><div class="lbl">Avec coordonnées</div><div class="val" style="color:#10b981">{len(df_with_coords):,}</div></div>
-    <div style="text-align:right"><div class="lbl">Taux</div><div class="val" style="color:#10b981">{pct_with}%</div></div>
-  </div>
-  <div>
-    <div class="bar-bg"><div class="bar-fill" style="width:{pct_with}%"></div></div>
-  </div>
-  <div class="row" style="border-bottom:none">
-    <div><div class="lbl">Sans coordonnées</div><div class="val" style="color:#f59e0b">{len(df_without_coords):,}</div></div>
-    <div style="text-align:right"><div class="lbl">Taux</div><div class="val" style="color:#f59e0b">{pct_without}%</div></div>
-  </div>
-  <div>
-    <div class="bar-bg"><div class="bar-fill" style="width:{pct_without}%;background:#f59e0b"></div></div>
-  </div>
-  <div style="margin-top:auto;font-size:.65rem;color:#2e3d52;text-align:center">
-    Total : {len(df_gares):,} gares
-  </div>
-</div>
-</body></html>""", height=320)
-
-st.html("<div style='height:1rem;'></div>")
-
+page_module = importlib.import_module(module_path)
+page_module.render()

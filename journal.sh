@@ -36,5 +36,5 @@ git push --set-upstream origin api
 
 
 # merge branch
-git checkout main
+git checkout api
 git merge api

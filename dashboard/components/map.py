@@ -1,90 +1,84 @@
+"""Carte du reseau ferroviaire pour la maquette ObRail."""
+
+from __future__ import annotations
+
 import plotly.graph_objects as go
 
 
-def railway_map(df_gares, df_segments=None, show_segments=False):
-    """
-    df_gares   : DataFrame with columns [nom_gare, latitude, longitude]
-    df_segments: DataFrame with columns [lat_depart, lon_depart, lat_arrivee, lon_arrivee]
-                 Each row is a segment between two *consecutive* stations on a route.
-                 These come from splitting itineraire.chemin → pairs of adjacent stations.
-    """
+GREEN = "#174936"
+NAVY = "#1d2a53"
+ACCENT = "#ea7d57"
+CREAM = "#f6f1e8"
+TEXT = "#143d35"
+
+
+def railway_map(df_gares, df_segments=None, show_segments: bool = False, height: int = 460):
     fig = go.Figure()
 
-    # ── Railway segments (optional) ────────────────────────────
     if show_segments and df_segments is not None and not df_segments.empty:
-        all_lats: list = []
-        all_lons: list = []
-
+        latitudes = []
+        longitudes = []
         for _, row in df_segments.iterrows():
             try:
-                all_lats.extend([float(row["lat_depart"]), float(row["lat_arrivee"]), None])
-                all_lons.extend([float(row["lon_depart"]), float(row["lon_arrivee"]), None])
+                latitudes.extend([float(row["lat_depart"]), float(row["lat_arrivee"]), None])
+                longitudes.extend([float(row["lon_depart"]), float(row["lon_arrivee"]), None])
             except Exception:
                 continue
+        if latitudes:
+            fig.add_trace(
+                go.Scattermapbox(
+                    lat=latitudes,
+                    lon=longitudes,
+                    mode="lines",
+                    line=dict(width=3.2, color="rgba(29,42,83,0.12)"),
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+            )
+            fig.add_trace(
+                go.Scattermapbox(
+                    lat=latitudes,
+                    lon=longitudes,
+                    mode="lines",
+                    line=dict(width=1.15, color="rgba(23,73,54,0.44)"),
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+            )
 
-        if all_lats:
-            # Outer glow
-            fig.add_trace(go.Scattermapbox(
-                lat=all_lats,
-                lon=all_lons,
-                mode="lines",
-                line=dict(width=3.2, color="rgba(16,185,129,0.14)"),
+    if df_gares is not None and not df_gares.empty:
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=df_gares["latitude"],
+                lon=df_gares["longitude"],
+                mode="markers",
+                marker=dict(size=18, color="rgba(234,125,87,0.20)"),
                 hoverinfo="skip",
                 showlegend=False,
-            ))
-            # Core line
-            fig.add_trace(go.Scattermapbox(
-                lat=all_lats,
-                lon=all_lons,
-                mode="lines",
-                line=dict(width=1.2, color="rgba(110,255,210,0.34)"),
-                hoverinfo="skip",
+            )
+        )
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=df_gares["latitude"],
+                lon=df_gares["longitude"],
+                mode="markers",
+                marker=dict(size=7, color=GREEN, opacity=0.96),
+                text=df_gares["nom_gare"] if "nom_gare" in df_gares.columns else None,
+                hovertemplate="<b>%{text}</b><extra></extra>",
                 showlegend=False,
-            ))
-
-    # ── Station glow — 3 layers ───────────────────────────────
-    # Layer 1: wide soft halo
-    fig.add_trace(go.Scattermapbox(
-        lat=df_gares["latitude"],
-        lon=df_gares["longitude"],
-        mode="markers",
-        marker=dict(size=10, color="rgba(80,255,180,0.08)"),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
-
-    # Layer 2: mid glow
-    fig.add_trace(go.Scattermapbox(
-        lat=df_gares["latitude"],
-        lon=df_gares["longitude"],
-        mode="markers",
-        marker=dict(size=5, color="rgba(100,255,190,0.28)"),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
-
-    # Layer 3: bright core
-    fig.add_trace(go.Scattermapbox(
-        lat=df_gares["latitude"],
-        lon=df_gares["longitude"],
-        mode="markers",
-        marker=dict(size=2.5, color="#d4fff0", opacity=1.0),
-        text=df_gares["nom_gare"],
-        hovertemplate="<b>%{text}</b><extra></extra>",
-        showlegend=False,
-    ))
+            )
+        )
 
     fig.update_layout(
         mapbox=dict(
-            style="carto-darkmatter",
-            zoom=3.2,
-            center={"lat": 48.5, "lon": 10},
+            style="carto-positron",
+            zoom=3.35,
+            center={"lat": 48.7, "lon": 9.5},
         ),
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        height=460,
+        plot_bgcolor=CREAM,
+        height=height,
         uirevision="map",
     )
-
     return fig
