@@ -3,8 +3,9 @@ from urllib.parse import quote
 
 import requests
 
-from config.api_config import API_URL
+import os
 
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 # ──────────────────────────────────────────────────────────
 #  Données métier

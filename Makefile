@@ -29,7 +29,7 @@ up:
 	@echo "$(GREEN)Stack démarrée :$(RESET)"
 	@echo "   Frontend  → http://localhost:8501"
 	@echo "   Backend   → http://localhost:8000/docs"
-	@echo "   Grafana   → http://localhost:3000  (admin / admin)"
+	@echo "   Grafana   → http://localhost:3010  (admin / admin)"
 	@echo ""
 
 ## Arrête tout
@@ -116,9 +116,9 @@ db-restore:
 
 ## Ouvre Grafana
 monitoring: 
-	@command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:3000 || \
-	command -v open >/dev/null 2>&1 && open http://localhost:3000 || \
-	echo "Ouvrir : http://localhost:3000"
+	@command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:3010 || \
+	command -v open >/dev/null 2>&1 && open http://localhost:3010 || \
+	echo "Ouvrir : http://localhost:3010"
 
 #  CI locale 
 ci-local: etl-validate frontend-test backend-test 
