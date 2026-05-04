@@ -11,3 +11,5 @@ alembic
 
 pytest
 httpx
+
+prometheus-fastapi-instrumentator
