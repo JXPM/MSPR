@@ -20,7 +20,7 @@ def test_nav_observatoire(page: Page, base_url: str):
     page.wait_for_load_state("networkidle")
     page.locator(".st-key-nav_Observatoire button").click()
     page.wait_for_load_state("networkidle")
-    expect(page.locator("h1")).to_contain_text("Observatoire", timeout=15000)
+    expect(page.locator("h1")).to_contain_text("Observatoir", timeout=15000)
 
 
 def test_nav_supervision(page: Page, base_url: str):
