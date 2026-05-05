@@ -1,893 +1,424 @@
-# CR — Compte-Rendu de compréhension du projet ObRail Europe
+# RAPPORT TECHNIQUE
 
-> Ce document explique le projet dans son entièreté, pour quelqu'un qui débute.
-> Il couvre : le backend, le frontend, la base de données, l'ETL, le monitoring et l'intégration continue (GitHub Actions).
+## ObRail Europe
 
----
+### Mise en production d'une solution d'intelligence artificielle
 
-## 1. Vue d'ensemble — c'est quoi ce projet ?
+Référence : MSPR TPRE532 Bloc E6.3
 
-**ObRail Europe** est une application web de data science qui observe le réseau ferroviaire européen.
+Certification : Professionnelle Développeur en Intelligence Artificielle et Data Science RNCP36581
 
-Elle répond à des questions comme :
-- Combien de trajets existent entre deux pays ?
-- Quelles sont les émissions CO₂ d'un trajet en train vs en avion ?
-- Quels opérateurs ferroviaires couvrent quelles lignes ?
+Membres du groupe : Kouamé Johan BILÉ, Joseph HACCANDY, Glody KUTUMBAKANA, Nabil DIA
 
-L'application est composée de **5 blocs** qui s'assemblent comme des briques :
-
-```
-Données brutes (CSV, JSON, GTFS)
-        ↓
-  [ETL Talend]  ← transforme et nettoie les données
-        ↓
-[Base PostgreSQL] ← stocke toutes les données propres
-        ↓
-  [Backend FastAPI] ← expose les données via une API REST
-        ↓
-[Dashboard Streamlit] ← affiche les données dans un navigateur
-        ↑
-  [Monitoring] ← surveille que tout fonctionne
-```
+Date de soutenance : à remplir
 
 ---
 
-## 2. La Base de données — PostgreSQL
+# CHAPITRE 1 : INTRODUCTION
 
-### C'est quoi ?
-PostgreSQL est un système de gestion de base de données (SGBD). On y stocke toutes les informations du projet dans des **tables** (comme des tableurs Excel liés entre eux).
+## 1.1 Contexte du projet
 
-### Comment elle est initialisée ?
-Au premier démarrage de Docker, PostgreSQL charge automatiquement le fichier `talend/dump/mspr2_dump_2026-04-22.sql`. Ce fichier contient toutes les tables et les données déjà remplies.
+ObRail Europe est un observatoire indépendant fondé en 2018, dont la mission principale est d'analyser les flux ferroviaires à l'échelle du continent européen et de promouvoir la mobilité durable. L'organisation travaille en étroite collaboration avec les institutions européennes, notamment la Commission européenne et le Parlement européen, ainsi qu'avec des organisations non gouvernementales spécialisées dans la transition écologique des transports, comme Transport et Environnement et Back-on-Track. Elle entretient également des partenariats avec les grands opérateurs ferroviaires du continent, parmi lesquels la SNCF, ÖBB Nightjet ou encore Deutsche Bahn.
 
-### Les 8 tables principales :
+Le projet s'inscrit dans deux cadres stratégiques européens majeurs. D'une part, il répond aux objectifs du Pacte Vert européen, connu sous le nom de Green Deal, qui vise à réduire de 55 % les émissions de gaz à effet de serre d'ici 2030 et à décarboner le secteur des transports. D'autre part, il s'articule avec le programme TEN-T, le réseau transeuropéen de transport, qui cherche à renforcer les liaisons ferroviaires entre les pays membres de l'Union européenne.
 
-| Table | Contenu |
-|---|---|
-| `pays` | Liste des pays européens (code ISO : FR, DE, ES…) |
-| `gare` | Toutes les gares (nom, coordonnées GPS, pays) |
-| `operateur` | Compagnies ferroviaires (SNCF, Eurostar, DB…) |
-| `ligne` | Lignes ferroviaires (JOUR ou NUIT) |
-| `type_train` | Catégories de trains (TGV, Intercity, Nightjet…) |
-| `trajet` | Un trajet = gare de départ + arrivée + horaires |
-| `itineraire` | Les arrêts intermédiaires d'un trajet |
-| `emission` | Empreinte CO₂ en kg (train et avion comparés) |
+Dans ce contexte, la question centrale posée par ObRail Europe est celle de la contribution respective des trains de jour et des trains de nuit à une mobilité interurbaine durable à l'échelle continentale. Les trains de nuit, en particulier, connaissent un regain d'intérêt depuis plusieurs années, car ils permettent de relier des métropoles éloignées sans recourir à l'avion, tout en limitant significativement les émissions de carbone. Comprendre leur répartition géographique, leur empreinte environnementale comparée à celle de l'avion et la manière dont les opérateurs les déploient est devenu un enjeu de politique publique.
 
-### Comment les tables sont liées ?
-Un `trajet` appartient à une `ligne`. Une `ligne` est exploitée par un `operateur`. Une `gare` est dans un `pays`. C'est ce qu'on appelle un **MCD** (Modèle Conceptuel de Données), visible dans `MCD_et_BDD/MCDFinal.jpg`.
+## 1.2 Problématique
 
-### Accès local
-- Hôte : `localhost`
-- Port : `5433` (attention, pas 5432 — c'est pour éviter les conflits)
-- Base : `mspr2`
-- Utilisateur : configuré dans le fichier `.env`
+Pour répondre à ces questions, ObRail Europe se heurte à un ensemble de contraintes techniques majeures. Premièrement, les données ferroviaires européennes sont extrêmement dispersées : elles proviennent de sources hétérogènes telles que des fichiers CSV issus d'OpenStreetMap, des fichiers JSON publiés par Back-on-Track, des flux GTFS (General Transit Feed Specification, le format standard des données de transport public) fournis par la SNCF, ou encore des fichiers Excel internes. Chaque opérateur publie ses données dans son propre format, sans référentiel commun entre les pays.
 
----
+Deuxièmement, la qualité de ces données est inégale : on y trouve des doublons, des codes UIC manquants, des fuseaux horaires incohérents et des noms de villes parfois mal encodés. Troisièmement, il n'existe pas de standard transfrontalier permettant d'harmoniser les informations d'un pays à l'autre. Quatrièmement, le traitement de ces données doit respecter le Règlement Général sur la Protection des Données, le RGPD, qui impose une transparence totale sur les traitements effectués. Cinquièmement, le projet est soumis à une contrainte temporelle forte, les résultats devant être disponibles avant la fin de l'année pour alimenter les travaux du Parlement européen.
 
-## 3. L'ETL Talend — pipeline de données
+À cela s'ajoute une contrainte héritée du projet précédent, le MSPR2 : un prototype fonctionnel avait été livré, reposant sur une base de données PostgreSQL et une API REST. Mais ce prototype présentait des limites importantes : son déploiement était entièrement manuel, aucun test automatisé n'était en place, et il n'existait aucun mécanisme de supervision pour détecter les incidents. En somme, le prototype fonctionnait dans un environnement contrôlé, mais il n'était pas industrialisable.
 
-### C'est quoi ?
-ETL = **E**xtract **T**ransform **L**oad.
-Talend est un outil qui lit des fichiers bruts (CSV, JSON, GTFS), les nettoie et les insère dans la base de données.
+La problématique de ce MSPR3 peut donc se formuler ainsi : comment passer d'un prototype fonctionnel à une application web industrialisée, testée de façon exhaustive, supervisée en temps réel, et capable d'accueillir un futur modèle d'intelligence artificielle ?
 
-### Les sources de données
-- `stations.csv` — gares issues d'OpenStreetMap
-- `trips.json` — trajets européens (Back-on-Track)
-- Fichiers GTFS SNCF — horaires officiels de la SNCF
-- `lists_of_iso_3166.csv` — codes pays ISO
+## 1.3 Objectifs opérationnels
 
-### Les 9 jobs (dans l'ordre d'exécution)
-Chaque job est un programme Java compilé (`.jar`) qui traite une table :
+Pour répondre à cette problématique, le groupe s'est fixé sept objectifs opérationnels clairs. Le premier est l'industrialisation de la stack technique grâce à Docker et Docker Compose, afin d'assurer une reproductibilité totale de l'environnement sur n'importe quelle machine. Le deuxième est la création d'une interface professionnelle respectant les exigences du Référentiel Général d'Amélioration de l'Accessibilité, le RGAA, niveau AA. Le troisième est la mise en place d'une stratégie de tests complète, couvrant les tests unitaires, d'intégration, de contrat, de qualité et de bout en bout. Le quatrième est l'automatisation de l'intégration et de la livraison continues via GitHub Actions. Le cinquième est l'instrumentation du backend avec Prometheus et Grafana pour superviser les performances en temps réel. Le sixième est la mise en conformité réglementaire, en particulier sur le plan de la sécurité et du RGPD. Le septième, enfin, est la rédaction d'un rapport technique complet documentant l'ensemble des choix effectués.
 
-1. `pays` — charge les codes pays
-2. `gare` — charge les gares avec leurs coordonnées GPS
-3. `operateur` — charge les compagnies ferroviaires
-4. `type_train` — charge les types de matériel roulant
-5. `ligne` — charge les lignes (JOUR/NUIT)
-6. `trajet` — charge les trajets
-7. `exploite` — lie opérateurs ↔ lignes
-8. `itineraire` — charge les arrêts intermédiaires
-9. `emission` — calcule les CO₂ (train depuis trips.json, avion = distance × 0.158)
+## 1.4 Organisation du rapport
 
-### Comment le CO₂ avion est calculé ?
-La formule est : `distance_km × 0.158` (facteur ADEME/BEIS).
+Ce rapport suit la structure logique du projet, en partant des fondations techniques pour remonter jusqu'aux couches supérieures. Il commence par la base de données et le pipeline ETL, puis décrit le backend et le frontend, avant d'aborder la stratégie de tests et l'intégration continue, le monitoring, le déploiement et enfin la conclusion, qui met en perspective les compétences couvertes et les évolutions possibles vers l'intelligence artificielle.
 
-### Pourquoi des `.jar` et pas du code source ?
-Les jobs Talend sont compilés en Java. Le code source reste dans Talend Open Studio (logiciel externe), et on versionne uniquement les JAR pour les déployer.
-
----
-
-## 4. Le Backend — FastAPI
-
-### C'est quoi ?
-FastAPI est un framework Python pour créer des **API REST**.
-Une API REST, c'est un serveur qui répond à des requêtes HTTP (comme un navigateur qui demande une page, mais ici on demande des données JSON).
-
-### Rôle
-Le backend lit la base de données et expose les données via des URLs appelées **endpoints**.
-
-### Les endpoints disponibles
-
-| URL | Ce qu'elle retourne |
-|---|---|
-| `GET /health` | `{"status": "ok"}` — le backend fonctionne |
-| `GET /gares` | Liste de toutes les gares |
-| `GET /lignes` | Liste de toutes les lignes |
-| `GET /trajets` | Liste de tous les trajets |
-| `GET /trajets/{id}` | Détail d'un trajet précis |
-| `GET /trajets/{id}/itineraire` | Les arrêts d'un trajet |
-| `GET /stats/trajets/count` | Nombre total de trajets |
-| `GET /stats/gares/count` | Nombre total de gares |
-| `GET /stats/lignes/count` | Nombre total de lignes |
-| `GET /stats/trajets/type` | Répartition JOUR / NUIT |
-| `GET /stats/emissions` | Moyenne CO₂ train vs avion |
-| `GET /stats/operateurs` | Nb de trajets par opérateur |
-| `GET /stats/trajets/map` | Coordonnées GPS pour la carte |
-
-### Documentation interactive
-Quand le backend tourne, tu peux accéder à `http://localhost:8000/docs` pour tester tous les endpoints directement dans le navigateur (interface Swagger automatique).
-
-### Architecture du code (`backend/app/`)
-
-```
-app/
-├── main.py        ← point d'entrée, configure l'app et ses routes
-├── database.py    ← connexion à PostgreSQL via SQLAlchemy
-├── models/        ← les 8 tables de la BDD représentées en Python
-├── schemas/       ← les formats de données attendus (validation Pydantic)
-├── routes/        ← les 5 fichiers qui définissent les endpoints
-└── services/      ← la logique métier (requêtes SQL complexes)
-```
-
-### Comment FastAPI parle à PostgreSQL ?
-Via **SQLAlchemy** : une bibliothèque Python qui traduit les requêtes Python en SQL.
-La connexion passe par la variable `DATABASE_URL` du fichier `.env`.
-
-### Les tests du backend (`backend/tests/`)
-8 fichiers de tests qui vérifient :
-- Que `/health` répond bien
-- Que les CORS sont corrects (sécurité navigateur)
-- Que les données sont cohérentes
-- Que les modèles fonctionnent
-- Que les statistiques sont calculées correctement
-
----
-
-## 5. Le Frontend — Streamlit (Dashboard)
-
-### C'est quoi ?
-Streamlit est un framework Python qui génère automatiquement des interfaces web à partir de code Python. Pas besoin de HTML/CSS/JavaScript.
-
-### Rôle
-Le dashboard affiche les données de l'API backend sous forme de graphiques, cartes et tableaux interactifs.
-
-### Les 3 pages
-
-| Page | Ce qu'elle montre |
-|---|---|
-| `observatoire.py` | Vue d'ensemble : métriques globales, graphiques principaux |
-| `trajets.py` | Exploration détaillée : filtres, cartes de trajets, horaires |
-| `supervision.py` | État du système : santé de l'API, statuts des services |
-
-### Comment le dashboard parle au backend ?
-Via `dashboard/services/api_service.py` : un client HTTP qui fait des requêtes `GET` vers `http://backend:8000` (en Docker) ou `http://localhost:8000` (en local).
-
-### Les composants (`dashboard/components/`)
-- `charts.py` — génère les graphiques Plotly (barres, lignes, secteurs)
-- `map.py` — génère les cartes interactives Folium
-- `icons.py` — wrapper pour les icônes Lucide
-
-### Accès
-- URL : `http://localhost:8501`
-
----
-
-## 6. Le Monitoring — Prometheus + Grafana
-
-### C'est quoi ?
-Le monitoring permet de **surveiller en temps réel** que les services fonctionnent, sans avoir à les regarder manuellement.
-
-### Prometheus
-- C'est un outil qui **collecte des métriques** (données de performance) en interrogeant les services toutes les 15 secondes
-- Il stocke l'historique de ces métriques dans un volume Docker persistant
-- Il scrute l'endpoint `http://backend:8000/metrics`
-- Accès : `http://localhost:9090`
-
-### Grafana
-- C'est l'outil de **visualisation** : il affiche les métriques Prometheus sous forme de dashboards graphiques
-- Accès : `http://localhost:3010` (login : `admin` / mot de passe dans `.env`)
-
-### Comment ils communiquent ?
-```
-Backend FastAPI (port 8000)
-        │
-        │  expose /metrics (toutes les 15s)
-        ↓
-Prometheus (port 9090)
-        │
-        │  requête PromQL
-        ↓
-Grafana (port 3010)
-```
-
-La configuration de Prometheus est dans `monitoring/prometheus.yml`.
-La configuration de Grafana (sources de données + dashboards) est dans `monitoring/grafana/`.
-
----
-
-### Pourquoi `prometheus-fastapi-instrumentator` ?
-
-C'est la bibliothèque Python qui **expose automatiquement les métriques** du backend FastAPI.
-
-Sans elle, Prometheus n'aurait rien à scruter : le backend n'aurait pas d'endpoint `/metrics`.
-
-Elle est activée en deux lignes dans `backend/app/main.py` :
-
-```python
-from prometheus_fastapi_instrumentator import Instrumentator
-Instrumentator().instrument(app).expose(app)
-```
-
-Ce que ça fait :
-- `.instrument(app)` — injecte un middleware invisible qui mesure chaque requête HTTP (durée, code de réponse, endpoint appelé)
-- `.expose(app)` — crée l'endpoint `/metrics` que Prometheus scrute toutes les 15 secondes
-
-Les métriques exposées sont :
-| Métrique | Ce qu'elle mesure |
-|---|---|
-| `http_request_duration_seconds` | Durée de chaque requête (histogramme) |
-| `http_requests_inprogress` | Nombre de requêtes en cours à l'instant T |
-
----
-
-### Pourquoi un dashboard custom et pas le dashboard 17242 ?
-
-Lors de la mise en place du monitoring, l'objectif initial était d'importer le dashboard communautaire **17242** depuis Grafana Labs. Ce dashboard n'existe pas — l'ID 17242 retourne une 404 sur grafana.com.
-
-Le dashboard FastAPI le plus connu sur Grafana Labs est le **16110** ("FastAPI Observability" par Blueswen). On a tenté de l'importer, mais il requiert **deux datasources** : Prometheus ET **Loki** (outil de collecte de logs). Notre stack ne comprend pas Loki — ajouter Loki aurait alourdi inutilement le projet.
-
-**Décision** : créer un dashboard custom (`monitoring/grafana/dashboards/fastapi-observability.json`) qui utilise uniquement Prometheus, avec les métriques réellement pertinentes pour ce projet.
-
----
-
-### Le dashboard "ObRail — FastAPI Metrics"
-
-Accessible à : `http://localhost:3010/d/obrail-fastapi`
-
-Il contient 6 panels :
-
-| Panel | Type | Métrique PromQL | Pourquoi |
-|---|---|---|---|
-| **Requetes / seconde** | Time series | `rate(http_request_duration_seconds_count[1m])` | Mesure le trafic entrant par endpoint. Permet de détecter des pics ou des baisses d'activité |
-| **Taux d'erreurs 4xx / 5xx** | Time series | `rate(...{status_code=~"4.."})` et `rate(...{status_code=~"5.."})` | Sépare les erreurs client (4xx = mauvaise requête) des erreurs serveur (5xx = bug backend). 4xx en orange, 5xx en rouge |
-| **Latence p50/p95/p99** | Time series | `histogram_quantile(0.95, ...)` | Les percentiles sont plus fiables que la moyenne. p95 = 95% des requêtes répondent en moins de X ms. Détecte la lenteur sans que la moyenne le masque |
-| **Requetes en cours** | Time series | `http_requests_inprogress` | Nombre de requêtes simultanées actives. Un pic inhabituel peut signaler un problème de performance |
-| **Total requetes** | Stat | `sum(http_request_duration_seconds_count)` | Compteur global depuis le démarrage. Indicateur de volume d'utilisation |
-| **Backend UP** | Stat | `up{job="obrail-backend"}` | Affiche vert (UP) ou rouge (DOWN). Premier indicateur de santé du service |
-
-**Pourquoi les percentiles (p50, p95, p99) et pas la moyenne ?**
-
-La moyenne ment. Si 99 requêtes répondent en 10ms et 1 requête met 10 secondes, la moyenne est d'environ 110ms — ça paraît acceptable. Le p99 révèle qu'1% des utilisateurs attendent 10 secondes.
-
----
-
-### Comment le dashboard survit aux redémarrages ?
-
-Le fichier JSON `monitoring/grafana/dashboards/fastapi-observability.json` est monté dans le container Grafana via le volume déclaré dans `docker-compose.yml`. Grafana relit ce dossier toutes les 30 secondes (`updateIntervalSeconds: 30` dans `monitoring/grafana/dashboards/dashboards.yml`).
-
-Résultat : même après `docker compose down && docker compose up`, le dashboard réapparaît automatiquement sans aucune manipulation.
-
----
-
-## 7. L'intégration continue — GitHub Actions (CI/CD)
-
-### C'est quoi ?
-CI/CD = **C**ontinuous **I**ntegration / **C**ontinuous **D**eployment.
-
-C'est un système automatique qui, à chaque fois que tu pousses du code sur GitHub, exécute une série de vérifications pour s'assurer que rien n'est cassé.
-
-### Quand ça se déclenche ?
-- À chaque `git push` sur la branche `main` ou `develop`
-- À chaque Pull Request vers `main`
-
-### Les 8 étapes du pipeline (`.github/workflows/main.yml`)
-
-#### Étape 1 — Détection des changements (`changes`)
-Regarde quels dossiers ont changé (`dashboard/`, `backend/`, `talend/`). Inutile de tout retester si tu n'as modifié que le frontend.
-
-#### Étape 2 — Tests du Frontend (`frontend-test`)
-Sur un serveur Linux temporaire (Ubuntu), GitHub :
-1. Installe Python 3.12
-2. Installe les dépendances du dashboard
-3. Vérifie la syntaxe du code avec **ruff** (linter Python)
-4. Vérifie que tous les fichiers `.py` se parsent sans erreur
-5. Lance les tests pytest du dashboard
-6. Sauvegarde le rapport de couverture de tests
-
-#### Étape 3 — Tests du Backend (`backend-test`)
-Sur un serveur Ubuntu avec une PostgreSQL de test :
-1. Installe Python 3.12 + dépendances backend
-2. Lint avec ruff
-3. Lance les 91 tests pytest avec une base de données réelle
-4. Sauvegarde le rapport de couverture
-
-#### Étape 4 — Validation Talend (`talend-lint`)
-1. **ShellCheck** : vérifie que les scripts bash sont corrects
-2. **Scan de secrets** : vérifie qu'il n'y a pas de mots de passe en clair dans les scripts
-3. **Structure** : vérifie que les 9 fichiers `.jar` sont présents
-4. **Intégrité** : vérifie que les JAR ne sont pas corrompus
-
-#### Étape 5 — Dry-run ETL (`talend-etl-dryrun`)
-Lance les 9 jobs Talend sur une base de test pour vérifier qu'ils s'exécutent sans crash.
-
-#### Étapes 6 & 7 — Build Docker (`docker-frontend`, `docker-backend`)
-**Seulement sur la branche `main`**, si les tests passent :
-- Construit les images Docker du frontend et du backend
-- Les pousse dans le registre `ghcr.io` (GitHub Container Registry)
-- Elles sont taggées avec le nom de branche, le SHA du commit, et `latest`
-
-#### Étape 8 — Résumé (`summary`)
-Affiche un tableau récapitulatif des résultats dans GitHub :
-```
-| Bloc                | Statut  |
-|---------------------|---------|
-| Frontend tests      | success |
-| Backend tests       | success |
-| Talend lint         | success |
-| Talend ETL dry-run  | success |
-```
-
-### Pourquoi c'est important ?
-Sans CI/CD, si quelqu'un push du code qui casse le backend, tout le monde en souffre. Avec CI/CD, GitHub bloque automatiquement les merges qui font planter les tests.
-
----
-
-## 8. Docker et Docker Compose
-
-### C'est quoi Docker ?
-Docker permet d'emballer une application avec tout ce dont elle a besoin (Python, bibliothèques, OS) dans une **image**. Cette image tourne dans un **container** — un environnement isolé, identique sur n'importe quelle machine.
-
-### C'est quoi Docker Compose ?
-Docker Compose permet de définir et lancer **plusieurs containers en même temps** avec un seul fichier (`docker-compose.yml`).
-
-### Les 5 services du projet
-
-| Service | Image | Port | Rôle |
-|---|---|---|---|
-| `postgres` | postgres:17-alpine | 5433 | Base de données |
-| `backend` | Image custom Python | 8000 | API FastAPI |
-| `frontend` | Image custom Python | 8501 | Dashboard Streamlit |
-| `prometheus` | prom/prometheus | 9090 | Collecte métriques |
-| `grafana` | grafana/grafana | 3010 | Visualisation métriques |
-
-### Le réseau `obrail`
-Tous les containers sont dans le même réseau Docker appelé `obrail`. Ils se parlent via leurs noms de service (ex: le backend appelle la BDD via `postgres:5432`, pas `localhost:5433`).
-
-### Les volumes persistants
-- `postgres_data` — les données de la BDD survivent aux redémarrages
-- `prometheus_data` — l'historique des métriques est conservé
-- `grafana_data` — les dashboards Grafana sont sauvegardés
-
----
-
-## 9. Le fichier `.env`
-
-### C'est quoi ?
-Le fichier `.env` contient les **variables d'environnement** : les paramètres sensibles ou configurables (mots de passe, URLs, noms de base de données).
-
-Il est lu automatiquement par Docker Compose.
-
-### Variables du projet
-
-| Variable | Rôle |
-|---|---|
-| `POSTGRES_DB` | Nom de la base de données |
-| `POSTGRES_USER` | Utilisateur PostgreSQL |
-| `POSTGRES_PASSWORD` | Mot de passe PostgreSQL |
-| `CORS_ORIGINS` | Origines autorisées pour l'API (laisser vide = défaut) |
-| `API_URL` | URL du backend vue depuis l'extérieur |
-| `GRAFANA_USER` | Login Grafana |
-| `GRAFANA_PASSWORD` | Mot de passe Grafana |
-| `DATABASE_URL` | URL complète de connexion à PostgreSQL |
-
-### Pourquoi ne pas commiter `.env` ?
-Le `.env` contient des mots de passe. On ne le met jamais dans git (voir `.gitignore`). On fournit un `.env.example` comme modèle.
-
----
-
-## 10. Structure des fichiers du projet
+## 1.5 Structure du projet
 
 ```
 MSPR3/
-├── backend/              ← API FastAPI (Python)
-│   ├── app/              ← code source
-│   ├── tests/            ← tests automatisés (91 tests)
-│   ├── Dockerfile        ← recette de l'image Docker backend
-│   └── requirements.txt  ← dépendances Python
+├── backend/                              API REST FastAPI
+│   ├── app/
+│   │   ├── main.py                       Point d'entrée, middlewares, rate limiting, Prometheus
+│   │   ├── database.py                   Connexion SQLAlchemy, SessionLocal
+│   │   ├── models/                       Classes ORM des 8 tables
+│   │   │   ├── pays.py
+│   │   │   ├── gare.py
+│   │   │   ├── operateur.py
+│   │   │   ├── ligne.py
+│   │   │   ├── type_train.py
+│   │   │   ├── trajet.py
+│   │   │   ├── itineraire.py
+│   │   │   └── emission.py
+│   │   ├── schemas/                      Schémas Pydantic (validation requête/réponse)
+│   │   │   ├── gare_schema.py
+│   │   │   ├── ligne_schema.py
+│   │   │   ├── trajet_schema.py
+│   │   │   ├── itineraire_schema.py
+│   │   │   ├── emission_schema.py
+│   │   │   ├── operateur_schema.py
+│   │   │   ├── pays_schema.py
+│   │   │   └── type_train_schema.py
+│   │   ├── routes/                       Endpoints FastAPI (5 fichiers)
+│   │   │   ├── health_routes.py
+│   │   │   ├── trajet_routes.py
+│   │   │   ├── gare_routes.py
+│   │   │   ├── ligne_routes.py
+│   │   │   └── stats_routes.py
+│   │   └── services/                     Logique métier et requêtes SQL
+│   │       ├── trajet_service.py
+│   │       ├── gare_service.py
+│   │       ├── ligne_service.py
+│   │       └── stats_service.py
+│   ├── tests/                            91 tests pytest (8 fichiers)
+│   │   ├── conftest.py                   Base SQLite en mémoire + données de test
+│   │   ├── test_health.py
+│   │   ├── test_contracts_cors.py
+│   │   ├── test_data_quality.py
+│   │   ├── test_gares_lignes.py
+│   │   ├── test_models.py
+│   │   ├── test_services_helpers.py
+│   │   ├── test_stats.py
+│   │   └── test_trajets.py
+│   ├── Dockerfile
+│   └── requirements.txt
 │
-├── dashboard/            ← Interface Streamlit (Python)
-│   ├── _pages/           ← les 3 pages de l'app
-│   ├── components/       ← graphiques, cartes, icônes
-│   ├── services/         ← client HTTP vers le backend
-│   ├── tests/            ← tests automatisés (31 tests)
-│   ├── Dockerfile        ← recette de l'image Docker frontend
-│   └── requirements.txt  ← dépendances Python
+├── dashboard/                            Tableau de bord Streamlit
+│   ├── app.py                            Point d'entrée, navigation, styles RGAA
+│   ├── _pages/                           3 pages fonctionnelles
+│   │   ├── trajets.py
+│   │   ├── observatoire.py
+│   │   └── supervision.py
+│   ├── components/                       Composants réutilisables
+│   │   ├── charts.py                     Graphiques Plotly
+│   │   ├── map.py                        Cartes Folium
+│   │   └── icons.py                      Icônes SVG
+│   ├── config/
+│   │   └── api_config.py                 URLs et constantes
+│   ├── services/
+│   │   └── api_service.py                Client HTTP backend + requêtes Prometheus
+│   ├── tests/                            31 tests pytest (3 fichiers)
+│   │   ├── conftest.py
+│   │   ├── test_api_service.py
+│   │   ├── test_charts.py
+│   │   └── test_icons.py
+│   ├── tests_e2e/                        6 tests Playwright (2 fichiers)
+│   │   ├── conftest.py
+│   │   ├── test_navigation.py
+│   │   └── test_accessibility.py
+│   ├── Dockerfile
+│   └── requirements.txt
 │
-├── talend/               ← Pipeline ETL (Java compilé)
-│   ├── Jobs/Jobs/        ← les 9 fichiers .jar
-│   └── dump/             ← dumps SQL de la base de données
+├── monitoring/                           Configuration Prometheus + Grafana
+│   ├── prometheus.yml                    Scraping toutes les 15s
+│   └── grafana/
+│       ├── dashboards/
+│       │   ├── dashboards.yml            Provisioning automatique
+│       │   └── fastapi-observability.json Dashboard 6 panels
+│       └── datasources/
+│           └── prometheus.yml            UID fixe : obrail-prometheus
 │
-├── MCD_et_BDD/           ← Schéma de la base de données
-├── monitoring/           ← Config Prometheus + Grafana
-├── .github/workflows/    ← Pipeline CI/CD GitHub Actions
-├── documentations/       ← Docs techniques PDF/MD
-├── données/              ← Données brutes (GTFS, CSV)
+├── talend/                               Pipeline ETL
+│   ├── Jobs/Jobs/                        9 jobs compilés (.jar)
+│   │   ├── pays/
+│   │   ├── gare/
+│   │   ├── operateur/
+│   │   ├── type_train/
+│   │   ├── ligne/
+│   │   ├── trajet/
+│   │   ├── exploite/
+│   │   ├── itineraire/
+│   │   └── emission/
+│   ├── dump/
+│   │   └── mspr2_dump_2026-04-22.sql     Données préchargées au démarrage Docker
+│   ├── execution_etl/
+│   │   └── activation.sh                 Lancement ETL Linux
+│   ├── lancement/
+│   │   ├── lancement.sh
+│   │   └── lancement.bat
+│   └── planication/
+│       └── planification.sh              Cron mensuel Linux
 │
-├── docker-compose.yml    ← Lance toute la stack en une commande
-├── Makefile              ← Raccourcis de commandes
-├── .env                  ← Variables d'environnement (ne pas commiter)
-├── .env.example          ← Modèle de .env à partager
-└── CR.md                 ← Ce fichier
+├── MCD_et_BDD/                           Schéma de la base de données
+│   ├── MCDFinal.jpg
+│   ├── mspr.sql
+│   └── requetes_verification.sql
+│
+├── .github/
+│   └── workflows/
+│       └── main.yml                      Pipeline CI/CD (9 jobs)
+│
+├── docker-compose.yml                    Orchestration des 5 services
+├── Makefile                              Raccourcis de commandes
+├── .env.example                          Template variables d'environnement
+├── why.md                                Journal des décisions techniques
+├── LANCEMENT.md                          Guide de démarrage
+└── README.md                             Documentation principale
 ```
 
 ---
 
-## 11. Résumé du flux de données
+# CHAPITRE 2 : BASE DE DONNÉES
 
-```
-1. DONNÉES BRUTES
-   CSV, JSON, GTFS (dans données/)
-         ↓
-2. ETL TALEND
-   Lit → Nettoie → Transforme → Insère
-   (talend/Jobs/Jobs/*.jar)
-         ↓
-3. POSTGRESQL
-   8 tables, données propres et reliées
-   (port 5433 en local)
-         ↓
-4. BACKEND FASTAPI
-   Lit la BDD, expose des endpoints JSON
-   http://localhost:8000
-         ↓
-5. DASHBOARD STREAMLIT
-   Interroge le backend, affiche les graphiques
-   http://localhost:8501
-         ↓
-6. MONITORING
-   Prometheus scrute le backend → Grafana affiche
-   http://localhost:3010
-```
+## 2.1 Modèle conceptuel
 
----
+La base de données constitue le socle de toute l'application. Elle est structurée autour de onze tables organisées en trois couches logiques. La première couche, dite couche référentiel, regroupe les données de structure du réseau ferroviaire : la table pays stocke les vingt-six pays européens identifiés par leur code ISO à deux lettres, comme FR pour la France ou DE pour l'Allemagne. La table gare recense toutes les gares du réseau avec leur nom, leurs coordonnées GPS et leur appartenance à un pays. La table operateur liste les compagnies ferroviaires. La table ligne décrit les lignes ferroviaires avec leur nom, leur distance et leur type, qui peut être JOUR ou NUIT. La table type_train référence les catégories de matériel roulant. La table source assure la traçabilité des imports ETL en enregistrant l'URL, le format et le volume de chaque source.
 
-## 12. Les tests en détail — qui teste quoi et pourquoi
+La deuxième couche, dite couche exploitation, couvre les circulations réelles. La table trajet représente un aller simple entre une gare de départ et une gare d'arrivée, avec les horaires de départ et d'arrivée stockés au format texte HH:mm:ss. La table itineraire détaille les arrêts intermédiaires de chaque trajet, ordonnés par leur rang de passage et rattachés à leurs coordonnées géographiques via le code UIC de chaque gare.
 
-> Les tests permettent de s'assurer automatiquement que le code fonctionne correctement.
-> À chaque modification du code, on relance les tests pour détecter immédiatement si quelque chose est cassé.
-> Le projet contient **91 tests backend** et **31 tests dashboard**, organisés en catégories.
+La troisième couche, la couche analyse, contient une unique table emission qui stocke l'empreinte carbone de chaque trajet, à la fois pour le train et pour l'avion. Deux tables d'association complètent ce modèle : la table exploite lie les opérateurs aux lignes qu'ils exploitent, et la table utilisation associe les opérateurs aux types de matériel roulant qu'ils emploient.
 
-### Comment les tests sont organisés
+Les clés primaires suivent des logiques différentes selon les tables : la table pays utilise le code ISO à deux caractères comme clé naturelle, la table gare utilise le code UIC à sept chiffres, la table trajet utilise un identifiant alphanumérique issu des données sources, et la table itineraire utilise une clé composite formée de l'identifiant du trajet et du rang de l'arrêt.
 
-Il existe 4 types de tests (marqués avec `@pytest.mark.XXX`) :
+## 2.2 Choix de PostgreSQL
 
-| Marqueur | Signification |
-|---|---|
-| `@pytest.mark.unit` | Teste une seule fonction de façon isolée, sans base de données |
-| `@pytest.mark.integration` | Teste un endpoint complet avec une vraie base de données (de test) |
-| `@pytest.mark.contract` | Vérifie que la forme des données retournées ne change pas |
-| `@pytest.mark.quality` | Vérifie la cohérence et la qualité des données |
+Le choix du système de gestion de base de données s'est porté sur PostgreSQL plutôt que sur ses concurrents pour plusieurs raisons complémentaires. Par rapport à MySQL, PostgreSQL offre un meilleur support des contraintes d'intégrité référentielle et une conformité plus stricte au standard SQL, ce qui garantit la cohérence des relations entre les onze tables. Par rapport à SQLite, PostgreSQL gère nativement la concurrence d'accès, ce qui est indispensable dès lors que plusieurs services Docker lisent simultanément la même base. Par rapport à MongoDB, un système de base de données orientée documents, PostgreSQL impose un schéma relationnel strict qui correspond exactement à la nature des données ferroviaires, dans lesquelles chaque trajet appartient à une ligne, chaque ligne est exploitée par un opérateur, et chaque gare est localisée dans un pays. Enfin, PostgreSQL est le système de gestion de base de données de référence pour la bibliothèque SQLAlchemy que nous utilisons dans le backend, et il satisfait pleinement aux exigences de conformité ACID, acronyme désignant les propriétés d'Atomicité, Cohérence, Isolation et Durabilité des transactions.
 
-### Le fichier `conftest.py` — la préparation des tests
+## 2.3 ETL Talend
 
-Avant chaque test, le fichier `conftest.py` prépare un environnement propre :
+L'ETL, acronyme d'Extract Transform Load désignant le pipeline de traitement des données, est orchestré avec Talend Open Studio for Data Integration. Talend lit les sources brutes, les nettoie, les transforme et les insère dans PostgreSQL via des connecteurs JDBC, le protocole standard de connexion Java aux bases de données.
 
-1. **Crée une base de données SQLite en mémoire** (une fausse base temporaire, créée et détruite à chaque test — pas la vraie PostgreSQL)
-2. **Insère des données de test** (appelées "fixtures" ou "seed data") :
-   - 4 pays : France, Allemagne, Italie, Autriche
-   - 6 gares : Paris Nord, Paris Lyon, Berlin Hbf, München Hbf, Milano Centrale, Wien Hbf
-   - 3 opérateurs : SNCF, ÖBB Nightjet, Deutsche Bahn
-   - 3 lignes : Paris–Berlin (JOUR), Paris–Vienne (NUIT), Berlin–Milano (JOUR)
-   - 4 trajets : SNC-1001, SNC-1002, OBB-2001, DBA-3001
-   - Des itinéraires et des émissions CO₂ associées
-3. **Crée un client de test FastAPI** qui appelle l'API sur ces données fictives
+Les sources de données mobilisées sont au nombre de trois principales. Le fichier stations.csv issu d'OpenStreetMap fournit les gares avec leurs coordonnées géographiques. Le fichier trips.json publié par Back-on-Track contient les trajets ferroviaires européens, notamment les trains de nuit, avec les informations d'opérateurs, de lignes, d'itinéraires et d'émissions de CO2. Les fichiers GTFS de la SNCF, au format ZIP contenant des fichiers CSV, fournissent les catégories de matériel roulant.
 
-Cela garantit que chaque test part d'un état connu et que les tests ne se perturbent pas entre eux.
+Le choix de Talend s'explique par sa capacité à traiter simultanément des formats multi-sources très hétérogènes, par sa traçabilité graphique qui permet de visualiser et de documenter chaque étape de transformation, et par le fait que les jobs compilés sous forme de fichiers JAR sont réutilisables sans dépendance à l'environnement de développement.
+
+Le pipeline Talend est composé de neuf jobs exécutés dans un ordre précis qui respecte les dépendances entre tables. Le premier job charge la table pays à partir des codes ISO. Le deuxième charge les gares depuis le fichier stations.csv. Le troisième charge les opérateurs ferroviaires. Le quatrième charge les types de matériel roulant depuis les données GTFS. Le cinquième charge les lignes. Le sixième charge les trajets. Le septième, le job exploite, établit les liens entre opérateurs et lignes. Le huitième charge les itinéraires, c'est-à-dire les arrêts intermédiaires. Le neuvième, enfin, calcule et insère les émissions de CO2.
+
+Le calcul de l'empreinte carbone de l'avion suit la formule suivante : l'empreinte en kilogrammes est égale à la distance en kilomètres multipliée par le facteur d'émission 0,158 kilogramme de CO2 équivalent par passager et par kilomètre. Ce facteur est issu des référentiels de l'ADEME, l'Agence de la transition écologique française, et du BEIS, le département britannique équivalent. L'empreinte carbone du train, quant à elle, est directement lue depuis le champ emissions_co2e du fichier trips.json fourni par Back-on-Track.
+
+## 2.4 Flux de données
+
+Le flux de données suit une chaîne linéaire et déterministe. Les sources brutes, qu'il s'agisse de CSV, de JSON ou de fichiers GTFS, sont lues par les neuf jobs Talend qui effectuent l'extraction, le nettoyage, le mapping et la validation de chaque enregistrement avant son insertion dans PostgreSQL. Ce processus aboutit à une base relationnelle propre, déduplicatée et cohérente, qui constitue la seule source de vérité pour le reste de l'application. Au premier démarrage de Docker, la base est préchargée automatiquement depuis le dump SQL versé dans le dépôt, ce qui évite de devoir relancer l'ETL complet à chaque déploiement.
+
+## 2.5 Conformité RGPD
+
+Le projet ne traite aucune donnée à caractère personnel. Toutes les données utilisées proviennent de l'open data public : les horaires de trains, les coordonnées des gares et les émissions de CO2 sont des informations publiques qui ne permettent pas d'identifier un individu. Plusieurs mesures techniques renforcent néanmoins la conformité réglementaire. Les journaux applicatifs ne contiennent aucune adresse IP d'utilisateur. Les secrets de connexion à la base de données, comme les mots de passe, ne sont jamais versionnés dans le dépôt Git mais sont gérés via un fichier d'environnement non versionné et via les GitHub Secrets pour le pipeline CI/CD. L'historique des métriques Prometheus est limité à trente jours par paramétrage explicite, ce qui évite l'accumulation indéfinie de données. Enfin, un fichier d'exemple documenté est fourni pour permettre à tout nouveau contributeur de configurer son environnement sans accéder aux vraies credentials.
 
 ---
 
-### BACKEND — les 8 fichiers de tests
+# CHAPITRE 3 : BACKEND
 
-#### `test_health.py` — Santé de l'API (3 tests)
+## 3.1 Architecture technique
 
-**But** : vérifier que l'endpoint `/health` fonctionne toujours, avant même de vérifier quoi que ce soit d'autre. C'est le premier signal que le serveur est vivant.
+Le backend est une API REST, c'est-à-dire un serveur qui reçoit des requêtes HTTP et répond avec des données au format JSON. Son code est organisé en couches séparées dont chacune a une responsabilité précise.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_health_returns_200` | L'URL `/health` répond avec le code HTTP 200 (= succès) |
-| `test_health_payload` | La réponse contient exactement `{"status": "ok"}` |
-| `test_health_does_not_require_auth` | L'endpoint est accessible sans authentification (pas de header `WWW-Authenticate`) |
+Le fichier main.py est le point d'entrée de l'application. C'est lui qui instancie le framework FastAPI, enregistre les middlewares de sécurité, active le rate limiting et connecte l'instrumentation Prometheus. Le fichier database.py gère la connexion à PostgreSQL via SQLAlchemy et fournit une factory de sessions de base de données. Le dossier models regroupe les classes Python qui représentent les onze tables de la base de données : chaque colonne SQL est modélisée comme un attribut Python typé. Le dossier schemas contient les schémas de validation Pydantic, qui définissent la forme exacte que doivent avoir les données entrantes et sortantes. Le dossier routes définit les endpoints de l'API, regroupés par domaine fonctionnel en cinq fichiers. Enfin, le dossier services contient la logique métier, notamment les requêtes SQL complexes et les fonctions de normalisation des noms de gares.
 
----
+## 3.2 Choix techniques
 
-#### `test_contracts_cors.py` — Contrats d'API et sécurité CORS (7 tests)
+Le choix de Python comme langage principal est naturel dans un projet de data science : son écosystème est le plus riche du domaine, avec des bibliothèques matures pour la manipulation de données, la validation et la création d'API.
 
-**But** : s'assurer que la forme des réponses de l'API ne change jamais sans que les tests le signalent, et que la configuration CORS est correcte.
+Le choix de FastAPI comme framework d'API plutôt que Flask s'explique par deux avantages décisifs. D'une part, FastAPI génère automatiquement une documentation Swagger interactive à partir des annotations Python, ce qui évite de maintenir une documentation séparée qui peut diverger du code. D'autre part, FastAPI intègre nativement Pydantic pour la validation des données, ce qui permet de détecter immédiatement les erreurs de format avant même que la logique métier soit exécutée.
 
-**C'est quoi CORS ?** Quand un navigateur web essaie d'appeler une API depuis un domaine différent (ex: le frontend sur `localhost:5173` appelle le backend sur `localhost:8000`), le navigateur exige que le serveur lui dise explicitement "oui, tu as le droit de m'appeler". C'est le mécanisme CORS.
+SQLAlchemy est utilisé comme ORM, c'est-à-dire comme traducteur automatique entre les objets Python et les requêtes SQL. C'est le standard de facto pour Python, et il prend en charge les relations complexes entre tables telles que celles de notre modèle.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_preflight_request` | Une requête `OPTIONS` (vérification préalable du navigateur) reçoit bien les headers CORS |
-| `test_cors_allows_localhost_5173` | Le frontend de développement (port 5173) est autorisé à appeler le backend |
-| `test_trajet_schema` | Un trajet retourné par l'API contient bien les champs `trajet_id`, `id_ligne`, `gare_depart`, `gare_arrivee`, `heure_depart`, `heure_arrivee` avec les bons types |
-| `test_gare_schema` | Une gare contient bien `code_uic`, `nom_gare`, `latitude` (qui peut être null) |
-| `test_count_schema` | L'endpoint de comptage retourne bien `{"total_trajets": nombre_entier}` |
-| `test_repartition_schema` | La répartition JOUR/NUIT retourne bien deux clés entières `JOUR` et `NUIT` |
-| `test_openapi_json_available` | La documentation JSON de l'API (`/openapi.json`) est accessible et porte le bon titre "ObRail Europe API" |
-| `test_swagger_ui_available` | L'interface Swagger (`/docs`) est accessible et contient bien du HTML Swagger |
+Pydantic assure le typage fort et la validation des réponses, garantissant que les données envoyées au frontend sont toujours dans le format attendu. Uvicorn sert de serveur ASGI, un protocole asynchrone plus performant que le WSGI traditionnel, et il supporte les workers multiples pour gérer la concurrence.
 
----
+## 3.3 Endpoints de l'API
 
-#### `test_data_quality.py` — Qualité et cohérence des données (10 tests)
+L'API expose treize endpoints couvrant l'ensemble des besoins du dashboard et de la supervision. L'endpoint GET /health retourne simplement l'état de santé du serveur sous la forme d'un objet JSON confirmant que l'API répond. L'endpoint GET /metrics expose les métriques de performance au format texte que Prometheus scrute toutes les quinze secondes. L'endpoint GET /trajets retourne la liste de tous les trajets disponibles. L'endpoint GET /trajets/{id} retourne le détail d'un trajet précis identifié par son identifiant. L'endpoint GET /trajets/{id}/itineraire retourne les arrêts intermédiaires ordonnés d'un trajet donné. L'endpoint GET /gares retourne la liste de toutes les gares avec leurs coordonnées GPS. L'endpoint GET /lignes retourne la liste de toutes les lignes ferroviaires avec leur type jour ou nuit.
 
-**But** : vérifier que les données qui viennent de l'ETL Talend respectent des règles métier fondamentales. Ces tests détectent des bugs de données (doublons, valeurs aberrantes, données manquantes).
+Du côté des statistiques, l'endpoint GET /stats/trajets/count retourne le nombre total de trajets. L'endpoint GET /stats/trajets/type retourne la répartition entre trains de jour et trains de nuit. L'endpoint GET /stats/emissions retourne l'empreinte carbone moyenne d'un trajet en train comparée à l'avion. L'endpoint GET /stats/operateurs retourne le volume de trajets par opérateur ferroviaire. L'endpoint GET /stats/trajets/map retourne les segments géographiques nécessaires au tracé de la carte du réseau. Enfin, l'endpoint GET /docs donne accès à la documentation interactive Swagger générée automatiquement.
 
-**TestInvariantsTrajets** — règles sur les trajets :
+Les endpoints /trajets et tous les endpoints /stats sont soumis à un rate limiting, c'est-à-dire une limitation du débit de requêtes.
 
-| Test | Ce qu'il vérifie | Pourquoi c'est important |
-|---|---|---|
-| `test_no_duplicate_trajet_ids` | Pas deux trajets avec le même `trajet_id` | Un doublon fausserait les comptages |
-| `test_all_trajets_have_horaires` | Chaque trajet a une `heure_depart` et `heure_arrivee` non nulles | Un trajet sans horaire est inutilisable |
-| `test_all_trajets_have_gares` | Chaque trajet a une gare de départ et d'arrivée | Un trajet sans gare n'a pas de sens |
-| `test_no_circular_trajets` | La gare de départ ≠ la gare d'arrivée | Un trajet de Paris à Paris est une erreur ETL |
+## 3.4 Sécurité
 
-**TestInvariantsLignes** — règles sur les lignes :
+Deux mécanismes de sécurité sont implémentés directement dans main.py. Le premier est le rate limiting, mis en œuvre grâce à la bibliothèque slowapi. Il limite à soixante requêtes par minute et par adresse IP l'accès aux endpoints /trajets et /stats. Lorsque cette limite est dépassée, l'API répond avec le code HTTP 429, qui signifie "Trop de requêtes", accompagné d'un message invitant à réessayer dans soixante secondes. Ce mécanisme protège l'API contre le scraping massif automatisé.
 
-| Test | Ce qu'il vérifie | Pourquoi c'est important |
-|---|---|---|
-| `test_type_service_only_jour_or_nuit` | Le `type_service` vaut uniquement `"JOUR"`, `"NUIT"` ou `null` | Toute autre valeur est une erreur de classification |
+Le second mécanisme est l'injection automatique de quatre headers de sécurité HTTP dans chaque réponse de l'API. Le header X-Content-Type-Options avec la valeur nosniff empêche les navigateurs de deviner le type d'un fichier, ce qui bloque un vecteur d'attaque dit de MIME sniffing. Le header X-Frame-Options avec la valeur DENY interdit l'intégration de l'API dans une iframe, ce qui protège contre le clickjacking, une attaque consistant à superposer un contenu frauduleux sur l'interface légitime. Le header X-XSS-Protection active le filtre de protection contre les injections de scripts des anciens navigateurs. Le header Referrer-Policy contrôle quelles informations de provenance sont transmises lors des requêtes cross-origin.
 
-**TestInvariantsGares** — règles sur les gares :
+## 3.5 Documentation automatique
 
-| Test | Ce qu'il vérifie | Pourquoi c'est important |
-|---|---|---|
-| `test_no_duplicate_uic` | Pas deux gares avec le même `code_uic` | Le code UIC est censé être unique mondialement |
-| `test_iso_pays_format` | Le code pays fait exactement 2 caractères majuscules (ex: `"FR"`, `"DE"`) | Respecte la norme ISO 3166 |
-| `test_coordinates_within_europe_bounds` | Les coordonnées GPS sont dans les limites de l'Europe : latitude entre 35°N et 70°N, longitude entre -10°W et 35°E | Des coordonnées à Tokyo signifient une erreur d'injection |
+FastAPI génère automatiquement une interface Swagger UI accessible à l'adresse /docs. Cette interface, toujours synchronisée avec le code source, permet de tester directement chaque endpoint depuis le navigateur, de visualiser les schémas de données attendus et retournés, et de comprendre le comportement de l'API sans lire le code source. C'est un avantage considérable pour l'intégration avec les partenaires d'ObRail Europe et pour les tests manuels pendant le développement.
 
 ---
 
-#### `test_gares_lignes.py` — Endpoints gares et lignes (9 tests)
+# CHAPITRE 4 : FRONTEND
 
-**But** : tester que les endpoints `/gares/` et `/lignes/` retournent les bonnes données avec la bonne structure.
+## 4.1 Architecture technique
 
-**TestGares** :
+Le frontend est un tableau de bord analytique développé avec Streamlit, un framework Python qui génère automatiquement des interfaces web sans écrire de HTML, de CSS ni de JavaScript. Son organisation suit une séparation claire entre les responsabilités.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_200` | `/gares/` répond HTTP 200 |
-| `test_returns_all_seeded_gares` | Retourne exactement 6 gares (les 6 insérées par le conftest) |
-| `test_gare_has_required_fields` | Chaque gare a les champs : `code_uic`, `nom_gare`, `latitude`, `longitude`, `iso_pays` |
-| `test_gares_have_iso_pays` | Les codes pays présents sont exactement FR, DE, IT, AT |
+Le fichier app.py est le point d'entrée de l'application. Il initialise Streamlit, définit la barre de navigation entre les pages et injecte les styles globaux, notamment les variables CSS de couleur et les règles d'accessibilité. Le dossier pages contient les trois pages fonctionnelles de l'application. Le dossier components regroupe les composants réutilisables : charts.py génère les graphiques Plotly, map.py génère les cartes interactives Folium, et icons.py encapsule les icônes vectorielles SVG. Enfin, le dossier services contient api_service.py, le client HTTP centralisé qui regroupe tous les appels vers le backend et vers Prometheus.
 
-**TestLignes** :
+## 4.2 Choix techniques
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_200` | `/lignes/` répond HTTP 200 |
-| `test_returns_all_seeded_lignes` | Retourne exactement 3 lignes |
-| `test_ligne_has_required_fields` | Chaque ligne a : `id_ligne`, `nom_ligne`, `type_service`, `distance` |
-| `test_lignes_type_service_in_jour_nuit` | Le `type_service` ne peut être que `"JOUR"`, `"NUIT"` ou `null` |
-| `test_lignes_distance_is_positive` | La distance d'une ligne est toujours un nombre positif |
+Streamlit a été choisi pour sa capacité à produire rapidement des interfaces analytiques interactives sans nécessiter de compétences en développement web front-end. Son intégration native avec Pandas pour la manipulation des données, Plotly pour les graphiques et Folium pour les cartes géographiques en fait l'outil idéal pour un projet de data science. Il inclut son propre serveur web, ce qui simplifie le déploiement Docker.
 
----
+Ce choix présente cependant une contrepartie importante : Streamlit génère le HTML de façon automatique, ce qui limite le contrôle sur les attributs d'accessibilité comme les attributs aria. Cette limitation a été identifiée, documentée, et des mesures palliatives ont été mises en place, comme expliqué dans la section suivante.
 
-#### `test_models.py` — Modèles de données SQLAlchemy (18 tests)
+Plotly a été retenu pour ses graphiques interactifs en Python, permettant aux utilisateurs de zoomer, de filtrer et d'inspecter les valeurs directement dans le navigateur. Folium permet de générer des cartes Leaflet interactives depuis Python, idéales pour visualiser les tracés des trajets ferroviaires sur une carte de l'Europe. Pandas assure la manipulation des données reçues de l'API avant leur affichage.
 
-**But** : vérifier que les classes Python qui représentent les tables de la BDD sont correctement définies. Ces tests ne font pas de requête HTTP — ils testent directement le code Python.
+## 4.3 Les trois pages du tableau de bord
 
-**TestModelsTableNames** — noms des tables :
+La page Trajets est la page d'exploration détaillée du réseau. Elle propose des filtres permettant de sélectionner les trajets par pays, par opérateur et par type de service jour ou nuit. Elle affiche une carte interactive Folium qui trace le tracé géographique du trajet sélectionné, ses horaires de départ et d'arrivée, un graphique comparant les émissions de CO2 du train et de l'avion pour ce même trajet, ainsi que la liste ordonnée des arrêts intermédiaires de l'itinéraire.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_pays_table` | La classe `Pays` correspond à la table SQL `"pays"` |
-| `test_gare_table` | La classe `Gare` correspond à `"gare"` |
-| `test_operateur_table` | La classe `Operateur` correspond à `"operateur"` |
-| `test_ligne_table` | La classe `Ligne` correspond à `"ligne"` |
-| `test_trajet_table` | La classe `Trajet` correspond à `"trajet"` |
-| `test_itineraire_table` | La classe `Itineraire` correspond à `"itineraire"` |
-| `test_emission_table` | La classe `Emission` correspond à `"emission"` |
+La page Observatoire est la vue d'ensemble synthétique destinée aux décideurs et aux partenaires institutionnels. Elle affiche en tête de page quatre indicateurs clés : le nombre total de trajets, le nombre de gares couvertes, le nombre de pays, et l'empreinte carbone moyenne comparée train versus avion. Elle présente ensuite un graphique en anneau montrant la répartition entre trains de jour et trains de nuit, un graphique à barres comparant les émissions de CO2 des deux modes de transport, et un histogramme représentant le volume de trajets par opérateur ferroviaire.
 
-**TestModelsPrimaryKeys** — clés primaires :
+La page Supervision est dédiée au suivi technique de l'état du système. Elle interroge l'endpoint /health du backend pour vérifier que l'API répond correctement et mesure sa latence. Elle interroge également Prometheus directement via des requêtes en langage PromQL pour récupérer le taux d'erreurs 5xx en temps réel et la latence au percentile 95. Si Prometheus est indisponible, la page affiche un état dégradé indiquant que les métriques ne sont pas accessibles, sans pour autant faire crasher l'application.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_pays_pk_iso` | La clé primaire de `Pays` est bien `iso_pays` |
-| `test_gare_pk_uic` | La clé primaire de `Gare` est bien `code_uic` |
-| `test_operateur_pk_code` | La clé primaire de `Operateur` est bien `code_operateur` |
-| `test_ligne_pk_id` | La clé primaire de `Ligne` est bien `id_ligne` |
-| `test_trajet_pk_id` | La clé primaire de `Trajet` est bien `trajet_id` |
-| `test_itineraire_composite_pk` | La clé primaire d'`Itineraire` est composite : `trajet_id` + `id_itineraire` (deux colonnes ensemble forment la clé) |
+## 4.4 Accessibilité RGAA
 
-**TestModelsRelations** — liaisons entre tables :
+L'application respecte plusieurs critères du Référentiel Général d'Amélioration de l'Accessibilité, niveau AA. Premièrement, le contraste entre le texte et le fond a été calculé et ajusté : la couleur dite muted, utilisée pour le texte secondaire, a été modifiée de la valeur #4f6b62 à #3d5a52, ce qui porte le ratio de contraste à 5,2 pour 1, au-dessus du seuil minimal de 4,5 pour 1 imposé par le niveau AA. Deuxièmement, un lien d'évitement, dit skip link, est présent en tête de chaque page sous la forme d'un lien ancré vers l'identifiant main-content. Ce lien, invisible à l'écran mais accessible au clavier, permet aux utilisateurs naviguant au clavier ou avec un lecteur d'écran de sauter directement au contenu principal sans traverser toute la navigation. Troisièmement, la hiérarchie des titres est respectée : chaque page contient un seul titre de niveau h1, puis des titres h2 et h3 pour les sous-sections. Quatrièmement, la navigation au clavier est fonctionnelle avec un focus visible sur les éléments interactifs.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_pays_has_gares` | La France a bien Paris Nord et Paris Lyon comme gares |
-| `test_pays_has_operateurs` | La France a bien SNCF comme opérateur |
-| `test_gare_back_to_pays` | La gare "Berlin Hbf" est bien reliée au pays "Allemagne" |
-| `test_ligne_has_trajets` | La ligne 1 (Paris–Berlin) a bien les trajets SNC-1001 et SNC-1002 |
-| `test_trajet_back_to_ligne` | Le trajet OBB-2001 est bien sur une ligne de type `"NUIT"` |
-| `test_itineraire_links_trajet_and_gare` | OBB-2001 a bien 3 arrêts, chacun lié à une gare et au trajet |
+La principale limitation liée à Streamlit est l'impossibilité de contrôler les attributs aria dans le HTML généré automatiquement par le framework. Cette limitation a été documentée de façon transparente comme un compromis assumé, en accord avec l'esprit du RGAA qui reconnaît que certains environnements techniques imposent des contraintes.
 
-**TestModelInstantiation** — création d'objets :
+## 4.5 Communication avec le backend
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_pays` | On peut créer un `Pays(iso_pays="ES", nom_pays="Espagne")` et lire ses attributs |
-| `test_gare_optional_coords` | Une gare peut exister sans coordonnées GPS (`latitude` et `longitude` sont `None` par défaut) |
-| `test_emission_avec_distances` | Une émission peut être créée avec seulement les champs train (avion reste `None`) |
+Toutes les communications avec le backend transitent par le module api_service.py, qui constitue un client HTTP centralisé et défensif. La fonction get_trajets appelle l'endpoint /trajets avec un timeout de dix secondes et retourne une liste vide en cas d'erreur réseau plutôt que de provoquer une exception. La fonction get_stats_emissions récupère les statistiques de CO2 et retourne un objet avec des valeurs à zéro en cas d'indisponibilité. La fonction get_trajets_map utilise un timeout de quinze secondes, plus long, car les données géographiques sont volumineuses. La fonction ping mesure la latence du backend en calculant le temps de réponse de l'endpoint /health, et retourne un objet contenant un booléen indiquant si le service répond et la latence en millisecondes.
+
+La fonction get_error_rate interroge l'API de Prometheus via une requête PromQL calculant le taux de requêtes HTTP ayant retourné un code d'erreur 5xx sur les cinq dernières minutes. La fonction get_api_latency_p95 interroge Prometheus pour calculer la latence au percentile 95 via la fonction histogram_quantile de PromQL. Ces deux fonctions retournent systématiquement un objet avec la clé value à None en cas d'erreur, sans jamais faire crasher le tableau de bord.
 
 ---
 
-#### `test_services_helpers.py` — Fonctions utilitaires internes (11 tests)
+# CHAPITRE 5 : TESTS ET INTÉGRATION CONTINUE
 
-**But** : tester deux fonctions internes du `trajet_service.py` qui corrigent les problèmes d'encodage des noms de gares.
+## 5.1 Types de tests
 
-**Contexte** : les données GTFS/CSV contiennent parfois des noms de villes mal encodés. Par exemple, "München" peut apparaître comme "MÃ¼nchen" (mojibake = texte encodé en UTF-8 mais lu comme latin-1). Ces fonctions les corrigent avant affichage.
+Le projet met en œuvre une stratégie de tests à cinq niveaux, chacun correspondant à une granularité différente de vérification.
 
-**TestFixMojibake** — `_fix_mojibake()` corrige l'encodage cassé :
+Les tests unitaires, annotés avec le marqueur pytest unit, testent une seule fonction de façon totalement isolée, sans base de données ni serveur HTTP. Ils vérifient par exemple le comportement des fonctions de normalisation des noms de gares ou de génération des graphiques. Les tests d'intégration, annotés integration, testent un endpoint complet depuis la requête HTTP jusqu'à la réponse JSON, en utilisant une vraie base de données de test. Ils vérifient que les composants s'assemblent correctement. Les tests de contrat, annotés contract, vérifient que la forme des réponses de l'API ne change jamais sans que les tests le signalent : si un champ disparaît ou change de type dans une réponse, le test échoue. Les tests de qualité, annotés quality, vérifient la cohérence métier des données issues de l'ETL Talend : absence de doublons, respect des formats attendus, cohérence géographique. Enfin, les tests de bout en bout utilisant Playwright pilotent un vrai navigateur web pour simuler des parcours utilisateur réels sur l'interface Streamlit.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_munchen_double_encoded` | `"MÃ¼nchen"` → `"München"` (cas réel rencontré dans les données) |
-| `test_unrecoverable_mojibake_returns_input` | Si la correction est impossible, retourne la chaîne originale sans planter |
-| `test_already_clean_string` | `"Paris Nord"` → `"Paris Nord"` (rien à corriger) |
-| `test_empty_string` | Une chaîne vide reste vide |
-| `test_none` | `None` reste `None` (pas de crash) |
+## 5.2 Organisation des tests
 
-**TestNormalizeName** — `_normalize_name()` normalise pour la recherche/comparaison :
+Le projet compte au total cent vingt-huit tests répartis en trois suites. La suite backend comprend quatre-vingt-onze tests organisés dans huit fichiers. La suite dashboard comprend trente et un tests dans trois fichiers. La suite de tests de bout en bout comprend six tests dans deux fichiers.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_lowercase` | `"Paris Nord"` → `"paris nord"` (tout en minuscules) |
-| `test_strip_accents` | `"München"` → `"munchen"` (supprime les accents) |
-| `test_strip_whitespace` | `"  Paris Nord  "` → `"paris nord"` (supprime les espaces en trop) |
-| `test_mojibake_then_normalize` | `"MÃ¼nchen"`, `"München"` et `"Munchen"` donnent tous le même résultat normalisé — ce qui permet de les comparer |
-| `test_empty` | Chaîne vide → chaîne vide |
-| `test_none` | `None` → `""` (chaîne vide, pas de crash) |
+Le fichier conftest.py joue un rôle central dans la suite backend : il prépare avant chaque test une base de données SQLite en mémoire, une base temporaire légère qui mime le comportement de PostgreSQL pour les tests. Cette base est peuplée avec des données de test connues : quatre pays (France, Allemagne, Italie, Autriche), six gares (Paris Nord, Paris Lyon, Berlin Hbf, München Hbf, Milano Centrale, Wien Hbf), trois opérateurs (SNCF, ÖBB Nightjet, Deutsche Bahn), trois lignes (Paris-Berlin en train de jour, Paris-Vienne en train de nuit, Berlin-Milan en train de jour), quatre trajets avec leurs identifiants, leurs itinéraires et leurs émissions associées. Comme ces données sont réinitialisées à chaque test, chaque test part d'un état connu et propre, ce qui garantit l'isolation et la reproductibilité des résultats.
 
----
+## 5.3 Outils de test
 
-#### `test_stats.py` — Endpoints de statistiques (18 tests)
+pytest a été retenu comme framework de test pour sa découverte automatique des fichiers de test, son système de marqueurs qui permet de filtrer les tests par type, et ses rapports détaillés incluant la couverture de code. Playwright a été choisi pour les tests de bout en bout car il pilote un vrai navigateur Chromium en mode headless, c'est-à-dire sans interface graphique visible, et peut être exécuté dans l'environnement de CI/CD sans installation d'un serveur X11. Ruff sert de linter, c'est-à-dire d'outil d'analyse statique du code : il vérifie en quelques millisecondes que le code respecte les conventions de style Python et remplace avantageusement les outils plus anciens Flake8 et isort.
 
-**But** : vérifier que tous les calculs et agrégations de l'API renvoient des valeurs correctes par rapport aux données de test.
+## 5.4 Pipeline GitHub Actions
 
-**TestKPICounts** — comptages globaux :
+Le pipeline d'intégration et de livraison continues est défini dans le fichier .github/workflows/main.yml et se déclenche automatiquement à chaque push sur les branches main et develop et à chaque Pull Request vers main. Il est composé de neuf jobs.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_count_trajets` | `/stats/trajets/count` retourne `{"total_trajets": 4}` (il y a 4 trajets dans les données de test) |
-| `test_count_lignes` | `/stats/lignes/count` retourne `{"total_lignes": 3}` |
-| `test_count_gares` | `/stats/gares/count` retourne `{"total_gares": 6}` |
-| `test_count_pays` | `/stats/pays/count` retourne `{"total_pays": 4}` |
+Le job changes est le premier à s'exécuter. Il analyse quels dossiers ont été modifiés dans le commit, parmi dashboard, backend et talend, et transmet cette information aux jobs suivants. Ce mécanisme évite de retester l'intégralité de la suite quand un seul composant a changé.
 
-**TestRepartitionJourNuit** — répartition des trains de jour vs nuit :
+Le job frontend-test s'exécute si des fichiers du dossier dashboard ont changé. Sur un serveur Linux Ubuntu temporaire fourni par GitHub, il installe Python 3.12, installe les dépendances du tableau de bord, puis lance Ruff pour vérifier la syntaxe du code avant de lancer les trente et un tests pytest du dashboard.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_jour_nuit_keys` | La réponse contient bien les clés `"JOUR"` et `"NUIT"` |
-| `test_jour_count` | Il y a 3 trajets de jour (SNC-1001, SNC-1002, DBA-3001) |
-| `test_nuit_count` | Il y a 1 trajet de nuit (OBB-2001, ligne Paris–Vienne sleeper) |
-| `test_total_matches_trajets_count` | JOUR + NUIT = 4 (cohérence avec le total des trajets) |
+Le job backend-test s'exécute si des fichiers du dossier backend ont changé. Il démarre un service PostgreSQL de test, installe Python 3.12 et les dépendances du backend, lance Ruff pour le lint, puis exécute les quatre-vingt-onze tests pytest en utilisant cette base de données réelle.
 
-**TestStatsOperateurs** — statistiques par opérateur :
+Le job talend-lint valide l'intégrité du pipeline ETL. Il lance ShellCheck, un outil d'analyse des scripts shell, pour détecter les erreurs dans les scripts bash. Il effectue un scan de secrets pour vérifier qu'aucun mot de passe n'est présent en clair dans les scripts. Il vérifie la présence des neuf fichiers JAR correspondant aux neuf jobs Talend. Il vérifie enfin l'intégrité de chaque fichier JAR en le décompressant et en contrôlant que son contenu est lisible.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_list` | La réponse est une liste |
-| `test_each_operateur_has_count` | Chaque élément de la liste a les champs `"operateur"` (texte) et `"trajets"` (entier) |
-| `test_sncf_has_2_trajets` | SNCF apparaît dans la liste avec 2 trajets (SNC-1001 et SNC-1002) |
-| `test_total_par_operateur_matches_trajets` | La somme des trajets de tous les opérateurs = 4 |
+Le job talend-etl-dryrun exécute l'intégralité des neuf jobs Talend sur une base de test PostgreSQL provisionnée dans GitHub Actions, en repartant du dernier dump SQL disponible dans le dépôt. Les logs de chaque job sont archivés comme artefact et conservés quatorze jours pour permettre le débogage.
 
-**TestStatsEmissions** — statistiques CO₂ :
+Le job e2e-test s'exécute après la validation des tests frontend et backend. Il lance la stack Docker complète avec docker compose up, attend que Streamlit réponde sur le port 8501 via une boucle de vérification d'une durée maximale de soixante secondes, installe Playwright et son navigateur Chromium, puis exécute les six tests de bout en bout. Quelle que soit l'issue des tests, un docker compose down est systématiquement exécuté pour nettoyer l'environnement.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_train_avion` | La réponse contient les clés `"train"` et `"avion"` |
-| `test_train_lower_than_avion` | L'empreinte CO₂ du train est inférieure à celle de l'avion (vrai physiquement) |
+Les jobs docker-frontend et docker-backend s'exécutent exclusivement sur la branche main, après que les tests correspondants ont réussi. Ils construisent les images Docker du frontend et du backend depuis leurs Dockerfile respectifs, puis les poussent vers le GitHub Container Registry, le registre d'images Docker hébergé par GitHub. Chaque image est taguée avec trois références : le nom de la branche, le SHA du commit pour une traçabilité exacte, et le tag latest pour pointer vers la dernière version stable.
 
-**TestTrajetsMap** — données pour la carte :
+Le job summary s'exécute en dernier, quels que soient les résultats des autres jobs. Il génère un tableau récapitulatif affiché directement dans l'interface GitHub, montrant le statut de chaque bloc du pipeline.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_list` | La réponse est une liste de segments |
-| `test_segments_have_coordinates` | Chaque segment a les 4 coordonnées : `lat_depart`, `lon_depart`, `lat_arrivee`, `lon_arrivee` |
-| `test_obb_2001_produces_2_segments` | Le trajet OBB-2001 avec 3 arrêts génère au moins 2 segments de carte (Paris→München, München→Wien) |
-| `test_segments_have_valid_lat_lon` | Les latitudes sont entre -90 et 90, les longitudes entre -180 et 180 |
+## 5.5 De l'intégration continue à la livraison continue
+
+L'intégration continue et la livraison continue sont dans le même pipeline, mais s'appliquent à des contextes différents. Sur une Pull Request, seuls les tests sont exécutés : le code soumis doit passer l'intégralité des cent vingt-huit tests avant de pouvoir être fusionné dans la branche principale. Sur un push direct sur main, si les tests réussissent, les images Docker sont automatiquement construites et poussées vers le registre. Cette architecture garantit que l'image déployée en production est exactement celle qui a été testée, sans aucune intervention manuelle entre les deux étapes.
 
 ---
 
-#### `test_trajets.py` — Endpoints trajets (12 tests)
+# CHAPITRE 6 : SUPERVISION
 
-**But** : tester les 3 endpoints dédiés aux trajets : liste, détail, et itinéraire.
+## 6.1 Pourquoi monitorer
 
-**TestTrajetsListe** — liste complète :
+La supervision d'une application en production est aussi importante que le code lui-même. Sans monitoring, une panne du backend peut rester inaperçue pendant des heures, jusqu'à ce qu'un utilisateur signale le problème. Avec Prometheus et Grafana, les équipes d'ObRail Europe peuvent consulter en temps réel l'état de l'API, détecter les dégradations de performance avant qu'elles affectent les utilisateurs, et réagir rapidement aux incidents.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_get_all_returns_200` | `/trajets/` répond HTTP 200 |
-| `test_get_all_returns_list` | Retourne une liste de 4 trajets |
-| `test_trajet_has_required_fields` | Chaque trajet contient : `trajet_id`, `id_ligne`, `gare_depart`, `gare_arrivee`, `heure_depart`, `heure_arrivee` |
-| `test_all_trajet_ids_are_unique` | Pas de doublon dans les identifiants retournés |
+## 6.2 Architecture Prometheus et Grafana
 
-**TestTrajetDetail** — détail d'un trajet :
+L'architecture de supervision repose sur deux outils complémentaires. Prometheus est un système de collecte de métriques open source qui fonctionne en mode scraping : il interroge périodiquement les services qu'il surveille pour récupérer leurs métriques. Dans notre projet, Prometheus scrute l'endpoint /metrics du backend toutes les quinze secondes. Grafana est l'outil de visualisation qui interroge Prometheus via le langage PromQL pour afficher les métriques sous forme de graphiques interactifs.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_get_existing_trajet` | `/trajets/SNC-1001` retourne le bon trajet avec `gare_depart="Paris Nord"` et `gare_arrivee="Berlin Hbf"` |
-| `test_get_nonexistent_returns_404` | `/trajets/UNKNOWN-9999` retourne HTTP 404 avec le message `"Trajet not found"` |
-| `test_get_trajet_returns_id_ligne` | Le trajet OBB-2001 est bien sur la ligne 2 |
+La liaison entre le backend FastAPI et Prometheus est assurée par la bibliothèque prometheus-fastapi-instrumentator. Cette bibliothèque injecte automatiquement un middleware dans FastAPI, c'est-à-dire une couche intermédiaire invisible qui mesure chaque requête reçue par l'API : sa durée, son code de réponse HTTP et l'endpoint appelé. Elle crée également l'endpoint /metrics que Prometheus interroge. Elle est activée en deux lignes de code dans main.py. Prometheus stocke l'historique de ces métriques dans un volume Docker persistant avec une rétention configurée à trente jours.
 
-**TestTrajetItineraire** — arrêts intermédiaires :
+## 6.3 Métriques collectées
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_itineraire_returns_ordered_gares` | `/trajets/OBB-2001/itineraire` retourne 3 gares dans l'ordre : Paris Lyon → München Hbf → Wien Hbf |
-| `test_itineraire_includes_coordinates` | Le premier arrêt a des coordonnées GPS non nulles |
-| `test_itineraire_includes_uic_and_iso` | Chaque arrêt contient son `code_uic` et son `iso_pays` |
-| `test_itineraire_for_nonexistent_returns_404` | Un itinéraire d'un trajet inconnu retourne HTTP 404 |
-| `test_itineraire_supports_slash_in_id` | Un `trajet_id` contenant un slash et un espace (`"CFR 78/1743"`) fonctionne correctement — cas réel trouvé dans les données GTFS |
+FastAPI expose nativement deux métriques grâce à l'instrumentation. La première est http_request_duration_seconds, un histogramme qui enregistre la durée de chaque requête en secondes, ventilée par endpoint et par code de réponse HTTP. La seconde est http_requests_inprogress, un compteur en temps réel du nombre de requêtes en cours de traitement à l'instant T.
 
----
+Prometheus les agrège ensuite pour calculer des métriques dérivées plus utiles pour l'analyse opérationnelle : le taux de requêtes par seconde, le taux d'erreurs 4xx correspondant aux erreurs côté client et le taux d'erreurs 5xx correspondant aux erreurs côté serveur, les percentiles de latence aux niveaux p50, p95 et p99, et l'indicateur de disponibilité du service qui indique si le backend répond ou non.
 
-### DASHBOARD — les 3 fichiers de tests
+## 6.4 Le dashboard Grafana en six panneaux
 
-#### `test_api_service.py` — Client HTTP du dashboard (13 tests)
+Le dashboard Grafana intitulé ObRail FastAPI Metrics présente six panneaux complémentaires, chacun répondant à une question opérationnelle précise.
 
-**But** : vérifier que le code Python du dashboard qui appelle le backend se comporte correctement, même quand le backend est indisponible ou retourne des erreurs.
+Le premier panneau, Requêtes par seconde, utilise la requête PromQL rate appliquée au compteur de requêtes sur la dernière minute. Il permet de visualiser le trafic entrant en temps réel et de détecter des pics ou des baisses anormales d'activité.
 
-**Technique utilisée** : les tests "mockent" (simulent) le backend avec `unittest.mock.patch`. Le vrai backend n'est pas lancé — on intercepte les appels HTTP et on retourne des réponses fictives.
+Le deuxième panneau, Taux d'erreurs 4xx et 5xx, distingue visuellement les erreurs client, affichées en orange, des erreurs serveur, affichées en rouge. Cette distinction est essentielle car les erreurs 4xx indiquent généralement un problème dans l'utilisation de l'API par les clients, tandis que les erreurs 5xx signalent des bugs ou des indisponibilités côté serveur.
 
-**TestGetTrajets** :
+Le troisième panneau, Latence p50/p95/p99, utilise la fonction histogram_quantile de PromQL pour afficher les percentiles de latence. L'utilisation des percentiles plutôt que de la moyenne est un choix délibéré et important : la moyenne peut masquer des situations problématiques. Si quatre-vingt-dix-neuf requêtes répondent en dix millisecondes mais qu'une requête met dix secondes, la moyenne semble acceptable alors que le percentile 99 révèle immédiatement qu'un pourcent des utilisateurs attend dix secondes.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_calls_correct_url` | La fonction `get_trajets()` appelle bien `http://test-api:8000/trajets` avec un timeout de 10s |
-| `test_returns_json` | La fonction retourne le JSON reçu du backend |
+Le quatrième panneau, Requêtes en cours, affiche en temps réel le compteur http_requests_inprogress. Un pic inhabituel de requêtes simultanées peut signaler une saturation du backend ou une boucle de requêtes non maîtrisée.
 
-**TestGetTrajetItineraire** :
+Le cinquième panneau, Total requêtes, affiche le compteur cumulé de toutes les requêtes traitées depuis le démarrage du service. C'est un indicateur de volume d'utilisation global.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_url_encodes_special_chars` | L'ID `"CFR 78/1743"` est URL-encodé en `"CFR%2078%2F1743"` dans l'URL (sinon le serveur ne comprend pas) |
-| `test_returns_empty_list_on_404` | Si le backend répond 404, la fonction retourne `[]` au lieu de planter |
-| `test_returns_empty_list_on_exception` | Si le réseau coupe (exception Python), la fonction retourne `[]` — le dashboard ne crashe pas |
+Le sixième panneau, Backend UP/DOWN, est le plus immédiat : il affiche une pastille verte si le service répond et une pastille rouge sinon, en utilisant la métrique up de Prometheus qui vaut 1 quand le scraping réussit et 0 sinon.
 
-**TestStatsEndpoints** :
+## 6.5 Reproductibilité garantie
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_get_trajets_count` | `get_trajets_count()` appelle le bon endpoint et retourne le JSON |
-| `test_get_emissions` | `get_emissions()` retourne bien `{"train": 4.5, "avion": 185.0}` |
+Lors de la mise en place du monitoring, un problème de reproductibilité a été identifié et documenté dans le fichier why.md. Grafana génère un identifiant unique aléatoire, appelé UID, pour chaque source de données au premier démarrage. Sur une deuxième machine, cet identifiant est différent. Or le fichier JSON du dashboard référence cet UID pour savoir quelle source de données utiliser. Résultat : les panneaux du dashboard s'affichaient vides sur toute machine autre que celle où le dashboard avait été initialement créé.
 
-**TestGetOperateurs** :
-
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_list_when_200` | Si le backend répond 200, retourne la liste des opérateurs |
-| `test_returns_empty_when_non_200` | Si le backend répond 500 (erreur serveur), retourne `[]` |
-| `test_returns_empty_on_invalid_json` | Si le JSON est invalide, retourne `[]` sans planter le dashboard |
-
-**TestGetTrajetsMap** :
-
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_uses_longer_timeout` | `get_trajets_map()` utilise un timeout d'au moins 15s (données volumineuses) |
-| `test_returns_empty_on_500` | Retourne `[]` si le backend est en erreur |
-
-**TestPing** :
-
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_dict_with_ok_and_latency` | `ping()` retourne `{"ok": True, "latency_ms": X}` avec la latence en millisecondes |
-| `test_handles_exception` | Si la connexion échoue, retourne `{"ok": False}` sans planter |
+La solution adoptée consiste à fixer explicitement l'UID de la source de données Prometheus à la valeur littérale obrail-prometheus dans le fichier de provisioning Grafana. Le dashboard JSON référence ensuite cet UID fixe et non plus un identifiant aléatoire. Grâce au provisioning automatique via les volumes Docker, qui charge les dashboards et les datasources au démarrage depuis des fichiers du dépôt, le dashboard s'affiche correctement sur n'importe quelle machine, en CI comme en déploiement, sans la moindre intervention manuelle.
 
 ---
 
-#### `test_charts.py` — Graphiques Plotly (11 tests)
+# CHAPITRE 7 : DÉPLOIEMENT
 
-**But** : vérifier que les fonctions qui génèrent les graphiques créent bien un objet graphique valide, même avec des données vides ou à zéro.
+## 7.1 Déploiement local avec Docker Compose
 
-**TestJourNuitChart** — graphique en donut JOUR/NUIT :
+Le déploiement local de la stack complète s'effectue avec une seule commande : docker compose up -d --build. Docker lit le fichier docker-compose.yml qui définit les cinq services du projet et les assemble dans un réseau privé nommé obrail.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_figure` | `trajets_jour_nuit_chart(300, 110)` retourne un objet `go.Figure` (graphique Plotly) |
-| `test_has_donut_hole` | Le graphique est bien un donut (trou au centre, `hole > 0`) |
-| `test_handles_zero_values` | Fonctionne avec `jour=0, nuit=0` sans crash |
-| `test_labels_are_jour_nuit` | Les étiquettes sont `("Jour", "Nuit")` |
+Le service PostgreSQL démarre en premier et charge automatiquement le dump SQL du dépôt, ce qui initialise toutes les tables avec les données réelles sans intervention manuelle. Le service backend attend que PostgreSQL soit pleinement opérationnel grâce au mécanisme de condition de démarrage depends_on avec la vérification de santé service_healthy. Une fois PostgreSQL prêt, le backend démarre et expose l'API sur le port 8000. Le frontend Streamlit, Prometheus et Grafana démarrent ensuite de façon parallèle.
 
-**TestCO2Chart** — graphique d'émissions CO₂ :
+Des volumes Docker persistants garantissent que les données survivent aux redémarrages : postgres_data conserve les données de la base, prometheus_data conserve l'historique des métriques sur trente jours, et grafana_data conserve les configurations. Les ports exposés sur la machine hôte sont le port 5433 pour PostgreSQL, le port 8000 pour le backend, le port 8501 pour le frontend, le port 9090 pour Prometheus et le port 3010 pour Grafana. Le port non standard 5433 pour PostgreSQL est un choix délibéré pour éviter les conflits avec une éventuelle instance PostgreSQL locale déjà en cours.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_figure` | `co2_chart({"train": 4.5, "avion": 185.0})` retourne un graphique |
-| `test_handles_none_values` | Fonctionne si train et avion sont `None` (données manquantes) |
+Le premier démarrage nécessite trois à cinq minutes en raison du téléchargement des images Docker et de la construction des images custom. Les démarrages suivants prennent trente secondes environ car les images sont mises en cache localement.
 
-**TestOperateursChart** — graphique par opérateur :
+## 7.2 Build et push des images
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_figure_with_data` | Génère un graphique à partir d'une liste d'opérateurs |
-| `test_handles_empty_list` | Fonctionne avec une liste vide |
+Sur un push sur la branche main, après que les tests ont réussi, le pipeline GitHub Actions exécute automatiquement les jobs docker-backend et docker-frontend. Ces jobs construisent les images Docker depuis les Dockerfile de chaque composant, les taggent avec trois formats différents, le nom de la branche main pour les déploiements stables, le SHA du commit pour la traçabilité exacte de la version déployée, et le tag latest pour pointer vers la dernière version stable. Les images sont poussées vers GitHub Container Registry, accessible à l'adresse ghcr.io. Cette approche permet de déployer la dernière version validée en production avec une simple commande docker pull, sans avoir à reconstruire l'image localement.
 
-**TestPaysBarChart** — graphique par pays :
+## 7.3 Options de déploiement en ligne
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_with_pandas_series` | Génère un graphique depuis un `pd.Series` (ex: `{"FR": 50, "DE": 30}`) |
-| `test_with_empty_series` | Fonctionne avec une série vide |
+Trois options de déploiement en ligne ont été étudiées pour héberger l'application publiquement. Fly.io est l'option recommandée : son offre gratuite inclut trois machines virtuelles partagées et une base PostgreSQL de trois gigaoctets, sans mise en veille automatique. Le déploiement s'effectue avec quatre commandes : la création de la base PostgreSQL, l'initialisation de l'application, l'attachement de la base à l'application, la configuration des secrets d'environnement, et le déploiement proprement dit.
 
-**TestLatencyChart** — graphique de latence (page supervision) :
+Render est plus simple à prendre en main grâce à son interface web, mais présente un inconvénient majeur pour une démo publique : les services gratuits se mettent en veille après quinze minutes d'inactivité, ce qui rend le premier appel suivant cette mise en veille très lent, de l'ordre de trente secondes.
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_with_history` | Génère un graphique depuis un historique de mesures `{ts, latency_ms, ok}` |
-| `test_with_empty_history` | Fonctionne avec un historique vide |
+Oracle Cloud Free Tier offre deux machines virtuelles gratuites à vie, ce qui est techniquement suffisant pour faire tourner la stack complète incluant Prometheus et Grafana. En revanche, cette option nécessite une configuration plus technique, notamment l'ouverture manuelle des ports réseau dans les règles de sécurité du cloud et l'installation de Docker via SSH. Fly.io représente le meilleur compromis entre simplicité de déploiement et stabilité pour une démonstration publique.
 
 ---
 
-#### `test_icons.py` — Composant d'icônes (5 tests)
+# CHAPITRE 8 : CONCLUSION
 
-**But** : vérifier que la fonction `lucide()` qui génère des icônes SVG fonctionne correctement.
+## 8.1 Synthèse des compétences couvertes
 
-| Test | Ce qu'il vérifie |
-|---|---|
-| `test_returns_svg_string` | `lucide("train")` retourne un `str` contenant `<svg>...</svg>` |
-| `test_default_size` | Par défaut, l'icône fait 20×20 pixels |
-| `test_custom_size` | `lucide("train", size=32)` génère une icône de 32×32 pixels |
-| `test_custom_color` | `lucide("train", color="#ff0000")` inclut la couleur rouge dans le SVG |
-| `test_unknown_icon_falls_back_gracefully` | Une icône inconnue ne fait pas planter le dashboard — elle retourne quand même un `str` |
+Ce projet couvre l'ensemble des huit compétences définies par le référentiel RNCP36581 du titre Développeur en Intelligence Artificielle et Data Science.
 
----
+La compétence d'analyse du besoin est couverte par le chapitre d'introduction, qui formalise le contexte d'ObRail Europe, identifie les contraintes techniques et réglementaires, et traduit les besoins métier en sept objectifs opérationnels mesurables.
 
-### Résumé des tests
+La compétence de conception de l'architecture est couverte par le schéma des cinq services Docker et les justifications des choix techniques documentées dans chaque chapitre : PostgreSQL pour la base de données, FastAPI pour le backend, Streamlit pour le frontend, Prometheus et Grafana pour le monitoring.
 
-| Fichier | Nb tests | Type principal | Ce qu'il protège |
-|---|---|---|---|
-| `test_health.py` | 3 | integration | Le serveur répond |
-| `test_contracts_cors.py` | 8 | contract | La forme des réponses + sécurité CORS |
-| `test_data_quality.py` | 10 | quality | La cohérence des données ETL |
-| `test_gares_lignes.py` | 9 | integration | Les endpoints `/gares/` et `/lignes/` |
-| `test_models.py` | 18 | unit | Les classes Python des tables BDD |
-| `test_services_helpers.py` | 11 | unit | Les fonctions d'encodage des noms |
-| `test_stats.py` | 18 | integration | Tous les calculs statistiques |
-| `test_trajets.py` | 12 | integration | Les endpoints trajets + cas limites |
-| `test_api_service.py` | 13 | api | Le client HTTP du dashboard |
-| `test_charts.py` | 11 | charts | La génération des graphiques Plotly |
-| `test_icons.py` | 5 | unit | Le composant d'icônes SVG |
-| **Total** | **118** | | |
+La compétence de coordination en contexte agile et MLOps est couverte par le workflow Git structuré autour des branches, des Pull Requests et du pipeline CI/CD qui impose la validation des tests avant tout merge. Le monitoring continu et le fichier why.md documentant les décisions techniques s'inscrivent dans une démarche MLOps.
 
----
+La compétence de développement front-end, back-end et sécurité est couverte par le backend avec ses treize endpoints, son rate limiting et ses quatre headers de sécurité, par le frontend avec ses trois pages et ses mesures RGAA, et par l'ETL Talend qui traite les sources de données hétérogènes.
 
-## 13. Glossaire pour débutants
+La compétence d'automatisation des tests est couverte par les cent vingt-huit tests organisés en cinq types et exécutés automatiquement dans le pipeline GitHub Actions à chaque push.
 
-| Terme | Définition simple |
-|---|---|
-| **API REST** | Serveur qui répond à des requêtes HTTP en retournant du JSON |
-| **endpoint** | Une URL précise de l'API (ex: `/gares`) |
-| **JSON** | Format de données texte lisible par les machines (et les humains) |
-| **ORM** | Bibliothèque qui traduit du Python en SQL automatiquement |
-| **Docker** | Technologie pour empaqueter une app dans un container portable |
-| **Container** | Boîte isolée qui contient une app et tout ce dont elle a besoin |
-| **CI/CD** | Pipeline automatique qui teste et déploie le code à chaque push |
-| **pytest** | Framework de tests Python |
-| **linter (ruff)** | Outil qui vérifie que le code respecte les conventions de style |
-| **ETL** | Extract Transform Load — pipeline de traitement de données |
-| **GTFS** | Format standard de données de transport public |
-| **Prometheus** | Outil de collecte de métriques (performances, erreurs…) |
-| **Grafana** | Interface pour visualiser les métriques sous forme de graphs |
-| **SHA** | Identifiant unique d'un commit Git |
-| **MCD** | Modèle Conceptuel de Données — schéma des tables et relations |
+La compétence de livraison continue est couverte par le build automatique des images Docker et leur push vers GitHub Container Registry sur la branche main, garantissant que l'image déployée est exactement celle qui a été testée.
+
+La compétence de supervision avec monitoring est couverte par Prometheus et Grafana avec leur dashboard en six panneaux, par la page Supervision du tableau de bord qui expose les métriques en temps réel, et par la gestion de la reproductibilité de la configuration Grafana documentée dans why.md.
+
+La compétence de résolution des incidents est couverte par les trois corrections documentées dans why.md : le problème de double montage du dump SQL au démarrage, le problème de l'UID aléatoire de Grafana qui rendait le dashboard vide sur d'autres machines, et les mesures de sécurité ajoutées suite à l'identification d'un backend non protégé.
+
+## 8.2 Perspectives d'accueil d'un futur modèle d'intelligence artificielle
+
+Le projet a été conçu dès l'origine pour faciliter l'intégration d'un modèle d'intelligence artificielle dans une prochaine itération. Plusieurs éléments de l'architecture actuelle constituent des fondations directement exploitables.
+
+L'API expose les données ferroviaires au format JSON standardisé, ce que tout modèle d'apprentissage machine peut consommer facilement sans transformation supplémentaire. Le pipeline CI/CD peut être étendu pour intégrer une étape d'entraînement automatique déclenchée lors des modifications des données sources ou du code du modèle. Le monitoring Prometheus peut être étendu pour suivre des métriques spécifiques aux modèles d'intelligence artificielle, comme la dérive des données d'entrée, la précision des prédictions ou le taux de rappel, en ajoutant simplement de nouveaux compteurs dans le service d'inférence. Les volumes persistants Docker permettent de conserver les artefacts d'entraînement, les checkpoints de modèles et les historiques d'évaluation entre les redémarrages. La conteneurisation Docker garantit que le service d'inférence sera déployé dans les mêmes conditions reproductibles que le reste de la stack.
+
+La prochaine étape naturelle du projet consiste à implémenter un microservice de prédiction qui, à partir des données historiques des trajets stockées dans PostgreSQL, estimera la fréquentation future d'une ligne ou recommandera des optimisations de dessertes. Ce service s'inscrirait dans le réseau Docker existant, exposerait ses propres endpoints via l'API FastAPI, et bénéficierait immédiatement du monitoring et de la couverture de tests mis en place dans ce MSPR3. En ce sens, la valeur de ce projet ne réside pas seulement dans ce qu'il fait aujourd'hui, mais dans la robustesse de l'infrastructure qu'il établit pour demain.

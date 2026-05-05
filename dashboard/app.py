@@ -15,6 +15,8 @@ st.set_page_config(
 )
 
 st.html("""
+<a href="#main-content" class="skip-link">Aller au contenu principal</a>
+<div id="main-content">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -26,7 +28,7 @@ st.html("""
     --surface-strong: #fffdfa;
     --border: #dfd3c2;
     --text: #143d35;
-    --muted: #4f6b62;
+    --muted: #3d5a52;
     --muted-2: #6d877f;
     --green: #174936;
     --green-2: #255845;
@@ -900,6 +902,23 @@ div[data-testid="stPlotlyChart"] > div {
     overflow: hidden;
 }
 
+.skip-link {
+    position: absolute;
+    top: -999px;
+    left: 0;
+    background: var(--green);
+    color: #fff;
+    padding: 0.5rem 1rem;
+    z-index: 9999;
+    border-radius: 0 0 8px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+.skip-link:focus {
+    top: 0;
+}
+
 @media (max-width: 1100px) {
     .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .trip-hero { grid-template-columns: 1fr; }
@@ -916,6 +935,7 @@ div[data-testid="stPlotlyChart"] > div {
     .endpoint-row { grid-template-columns: 1fr; gap: 0.45rem; }
 }
 </style>
+</div>
 """)
 
 

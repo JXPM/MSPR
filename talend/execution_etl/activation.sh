@@ -1,9 +1,8 @@
--- activation pour windows
+#!/usr/bin/env bash
+# Activation de l'ETL Talend — Linux uniquement
+# Pour Windows, utiliser talend/lancement/lancement.bat
 
-cd \MSPR\talend\lancement
-lancement.bat
+set -euo pipefail
 
--- activation pour linux
-
-cd ./talend/lancement
+cd ./talend/lancement || exit 1
 ./lancement.sh

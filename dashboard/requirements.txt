@@ -6,3 +6,6 @@ requests
 streamlit-autorefresh
 folium
 streamlit-folium
+
+pytest-playwright
+playwright

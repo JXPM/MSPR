@@ -46,19 +46,13 @@ mkdir -p "$LOG_DIR"
 echo "[INFO] Dossier de logs : $LOG_DIR"
 
 # Verifier si la tache cron existe deja
-crontab -l 2>/dev/null | grep -q "$ETL_SCRIPT"
-if [ $? -eq 0 ]; then
+if crontab -l 2>/dev/null | grep -q "$ETL_SCRIPT"; then
     echo "[INFO] Une tache cron existante a ete trouvee. Remplacement en cours..."
     # Supprimer l'ancienne ligne et ajouter la nouvelle
-    (crontab -l 2>/dev/null | grep -v "$ETL_SCRIPT"; echo "$CRON_LINE") | crontab -
+    (crontab -l 2>/dev/null | grep -v "$ETL_SCRIPT"; echo "$CRON_LINE") | crontab - || { echo "[ERREUR] Echec de l'installation de la tache cron."; exit 1; }
 else
     # Ajouter la nouvelle ligne au crontab
-    (crontab -l 2>/dev/null; echo "$CRON_LINE") | crontab -
-fi
-
-if [ $? -ne 0 ]; then
-    echo "[ERREUR] Echec de l'installation de la tache cron."
-    exit 1
+    (crontab -l 2>/dev/null; echo "$CRON_LINE") | crontab - || { echo "[ERREUR] Echec de l'installation de la tache cron."; exit 1; }
 fi
 
 echo ""

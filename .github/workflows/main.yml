@@ -234,7 +234,51 @@ jobs:
           path: talend/dump-ci/*.sql
           retention-days: 30
 
-  #  DOCKER 
+  #  E2E Playwright
+  e2e-test:
+    name: E2E · Playwright
+    needs: [frontend-test, backend-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start stack
+        run: docker compose up -d
+        env:
+          POSTGRES_PASSWORD: postgres
+          GRAFANA_USER: admin
+          GRAFANA_PASSWORD: admin
+
+      - name: Wait for Streamlit (max 60s)
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8501/_stcore/health && echo "Streamlit ready" && break
+            echo "Waiting… ($i/30)"
+            sleep 2
+          done
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright + deps
+        working-directory: dashboard
+        run: |
+          pip install --upgrade pip
+          pip install playwright pytest-playwright
+          playwright install chromium
+
+      - name: Run E2E tests
+        working-directory: dashboard
+        env:
+          E2E_BASE_URL: http://localhost:8501
+        run: pytest tests_e2e/ -v
+
+      - name: Teardown
+        if: always()
+        run: docker compose down
+
+  #  DOCKER
   docker-frontend:
     name: Docker · frontend
     needs: [frontend-test]

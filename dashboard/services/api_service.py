@@ -6,6 +6,7 @@ import requests
 import os
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
+PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 
 # ──────────────────────────────────────────────────────────
 #  Données métier
@@ -126,6 +127,40 @@ def ping(endpoint: str = "/health", timeout: float = 3.0) -> dict:
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
             "error": str(exc)[:80],
         }
+
+
+def get_error_rate() -> dict:
+    """Taux d'erreurs 5xx via PromQL."""
+    try:
+        query = 'sum(rate(http_request_duration_seconds_count{status_code=~"5.."}[5m]))'
+        response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query",
+            params={"query": query},
+            timeout=5,
+        )
+        result = response.json().get("data", {}).get("result", [])
+        if result:
+            return {"value": float(result[0]["value"][1])}
+        return {"value": None}
+    except Exception:
+        return {"value": None}
+
+
+def get_api_latency_p95() -> dict:
+    """Latence p95 via PromQL."""
+    try:
+        query = "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))"
+        response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query",
+            params={"query": query},
+            timeout=5,
+        )
+        result = response.json().get("data", {}).get("result", [])
+        if result:
+            return {"value": float(result[0]["value"][1])}
+        return {"value": None}
+    except Exception:
+        return {"value": None}
 
 
 SUPERVISED_ENDPOINTS = [

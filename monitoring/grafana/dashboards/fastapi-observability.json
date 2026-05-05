@@ -1,4 +1,28 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "8.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ],
   "title": "ObRail - FastAPI Metrics",
   "uid": "obrail-fastapi",
   "schemaVersion": 36,
@@ -26,13 +50,13 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "obrail-prometheus"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "sum(rate(http_request_duration_seconds_count[1m])) by (handler)",
           "legendFormat": "{{handler}}",
@@ -65,13 +89,13 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "obrail-prometheus"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "sum(rate(http_request_duration_seconds_count{status_code=~\"4..\"}[1m])) or vector(0)",
           "legendFormat": "4xx",
@@ -80,7 +104,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[1m])) or vector(0)",
           "legendFormat": "5xx",
@@ -145,13 +169,13 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "obrail-prometheus"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
           "legendFormat": "p50",
@@ -160,7 +184,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
           "legendFormat": "p95",
@@ -169,7 +193,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))",
           "legendFormat": "p99",
@@ -202,13 +226,13 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "obrail-prometheus"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "http_requests_inprogress",
           "legendFormat": "{{handler}}",
@@ -241,13 +265,13 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "obrail-prometheus"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "sum(http_request_duration_seconds_count)",
           "legendFormat": "Total",
@@ -294,13 +318,13 @@
       },
       "datasource": {
         "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
+        "uid": "obrail-prometheus"
       },
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
+            "uid": "obrail-prometheus"
           },
           "expr": "up{job=\"obrail-backend\"}",
           "legendFormat": "Backend",
