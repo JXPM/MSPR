@@ -2,7 +2,7 @@ name: ObRail Europe — CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop,j-monitoring]
   pull_request:
     branches: [main]
 
