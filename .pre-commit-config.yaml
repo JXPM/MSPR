@@ -1,6 +1,15 @@
 default_language_version:
   python: python3.12
 
+exclude: |
+  (?x)^(
+    talend/Jobs/.*|
+    talend/dump/.*|
+    .*\.bat|
+    .*\.ps1|
+    documentations/.*
+  )$
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

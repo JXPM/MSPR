@@ -31,7 +31,7 @@ jobs:
             talend:
               - 'talend/**'
 
-  #  FRONTEND Streamlit 
+  #  FRONTEND Streamlit
   frontend-test:
     name: Frontend · lint & tests
     needs: changes
@@ -72,7 +72,7 @@ jobs:
           path: dashboard/coverage.xml
           retention-days: 14
 
-  #  BACKEND 
+  #  BACKEND
   backend-test:
     name: Backend · lint & tests
     needs: changes
@@ -121,7 +121,7 @@ jobs:
           path: backend/coverage.xml
           retention-days: 14
 
-  #  TALEND lint 
+  #  TALEND lint
   talend-lint:
     name: Talend · validation scripts
     needs: changes
@@ -155,7 +155,7 @@ jobs:
           done
           echo "All JARs valid"
 
-  #  TALEND ETL dry-run 
+  #  TALEND ETL dry-run
   talend-etl-dryrun:
     name: Talend · exécution ETL (dry-run)
     needs: [changes, talend-lint]

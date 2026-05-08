@@ -42,17 +42,17 @@ Voici le guide **sans aucune commande `make`**, uniquement du Docker natif. Parf
 docker --version
 ```
 
-*Ce que ça fait* : affiche la version de Docker installée.  
+*Ce que ça fait* : affiche la version de Docker installée.
 *Résultat attendu* : `Docker version 24.x.x` ou supérieur.
 
 ```bash
 docker compose version
 ```
 
-*Ce que ça fait* : affiche la version de Docker Compose.  
+*Ce que ça fait* : affiche la version de Docker Compose.
 *Résultat attendu* : `Docker Compose version v2.x.x`.
 
-> Si ces commandes ne fonctionnent pas → Docker n'est pas installé ou pas démarré.  
+> Si ces commandes ne fonctionnent pas → Docker n'est pas installé ou pas démarré.
 > Lance Docker Desktop (Windows/macOS) ou démarre le service Docker (Linux : `sudo systemctl start docker`).
 
 ---
@@ -65,7 +65,7 @@ docker compose version
 git clone <URL_DU_REPO>
 ```
 
-*Ce que ça fait* : télécharge tout le code du projet depuis GitHub vers ton ordinateur.  
+*Ce que ça fait* : télécharge tout le code du projet depuis GitHub vers ton ordinateur.
 *Remplace `<URL_DU_REPO>`* par l'URL réelle du dépôt (ex: `https://github.com/ton-orga/MSPR3.git`).
 
 ```bash
@@ -80,7 +80,7 @@ cd MSPR3
 git pull origin main
 ```
 
-*Ce que ça fait* : télécharge et applique les modifications que tes collègues ont poussées sur GitHub.  
+*Ce que ça fait* : télécharge et applique les modifications que tes collègues ont poussées sur GitHub.
 À faire à chaque fois avant de commencer à coder.
 
 ---
@@ -157,7 +157,7 @@ docker compose up -d --build
 
 ### Premier lancement
 
-**Temps** : 3 à 5 minutes (téléchargement + construction des images).  
+**Temps** : 3 à 5 minutes (téléchargement + construction des images).
 **Les fois suivantes** : 30 secondes.
 
 ---
@@ -194,7 +194,7 @@ obrail-grafana     running         0.0.0.0:3010->3000/tcp
 docker compose logs --tail=50
 ```
 
-*Ce que ça fait* : affiche les 50 dernières lignes de logs de **tous** les services.  
+*Ce que ça fait* : affiche les 50 dernières lignes de logs de **tous** les services.
 *Utile pour* : voir s'il y a des erreurs au démarrage.
 
 Pour un service précis :
@@ -239,7 +239,7 @@ docker compose down && docker compose up -d --build
 docker compose down -v
 ```
 
-*Ce que fait `-v`* : supprime aussi les volumes (PostgreSQL, Prometheus, Grafana).  
+*Ce que fait `-v`* : supprime aussi les volumes (PostgreSQL, Prometheus, Grafana).
 **Attention** : les données sont perdues. La prochaine fois que tu lances `docker compose up`, la base sera rechargée depuis le dump SQL.
 
 ### Voir les logs en continu
@@ -272,7 +272,7 @@ docker compose build
 docker compose exec backend bash
 ```
 
-*Ce que ça fait* : ouvre un terminal à l'intérieur du container backend. Tu peux explorer les fichiers, lancer des commandes Python...  
+*Ce que ça fait* : ouvre un terminal à l'intérieur du container backend. Tu peux explorer les fichiers, lancer des commandes Python...
 *Pour sortir* : tape `exit`.
 
 ---
@@ -594,7 +594,7 @@ fly auth login
 fly postgres create --name obrail-db --region cdg
 ```
 
-*`cdg` = Paris (région la plus proche de la France)*  
+*`cdg` = Paris (région la plus proche de la France)*
 **Note bien le mot de passe affiché** après la création.
 
 #### 4. Déployer le backend
@@ -703,5 +703,3 @@ Oracle offre **2 VMS gratuites à vie** (1 CPU, 1 Go RAM). Assez pour tout faire
 | **Idéal pour** | Démo publique | Présentation | Stack complète |
 
 ---
-
-

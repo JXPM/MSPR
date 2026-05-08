@@ -12,7 +12,7 @@ YELLOW := \033[33m
 RESET := \033[0m
 
 ## Affiche cette aide
-help: 
+help:
 	@echo ""
 	@echo "$(GREEN)ObRail Europe — Commandes disponibles$(RESET)"
 	@echo ""
@@ -20,10 +20,10 @@ help:
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  $(BLUE)%-22s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 
-#  Stack complète 
+#  Stack complète
 
 ## Lance toute la stack
-up: 
+up:
 	docker compose up -d --build
 	@echo ""
 	@echo "$(GREEN)Stack démarrée :$(RESET)"
@@ -33,49 +33,49 @@ up:
 	@echo ""
 
 ## Arrête tout
-down: 
+down:
 	docker compose down
 
 ## Redémarre
-restart: down up 
+restart: down up
 
 ## Logs continus  make logs SVC=backend pour un service
-logs: 
+logs:
 	docker compose logs -f $(SVC)
 
 ## Liste les containers
-ps: 
+ps:
 	docker compose ps
 
 ## Rebuild sans cache
-build: 
+build:
 	docker compose build --no-cache
 
 ## Stoppe + supprime volumes (perte de données)
-clean: 
+clean:
 	docker compose down -v
 
-#  Frontend Streamlit 
+#  Frontend Streamlit
 
 ## Lance Streamlit en local
-frontend-dev: 
+frontend-dev:
 	cd dashboard && streamlit run app.py
 
 frontend-test: ## Tests pytest
 	cd dashboard && pytest tests/ -v
 
-#  Backend 
+#  Backend
 
 ## Lance uvicorn en mode dev
-backend-dev: 
+backend-dev:
 	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## Tests pytest backend
-backend-test: 
+backend-test:
 	cd backend && pytest -v
 
 ## Shell Python dans le container
-backend-shell: 
+backend-shell:
 	docker compose exec backend python
 
 test: test-backend test-dashboard test-talend ## Lance toute la suite (154 tests, ~10s)
@@ -84,24 +84,24 @@ test: test-backend test-dashboard test-talend ## Lance toute la suite (154 tests
 
 ## 91 tests backend (FastAPI + modèles + qualité données)
 
-test-backend: 
+test-backend:
 	@echo "$(BLUE)  Backend — pytest$(RESET)"
 	@cd backend && python -m pytest tests/ --tb=short
 
 ## 31 tests dashboard (client API + Plotly + icons)
 
-test-dashboard: 
+test-dashboard:
 	@echo "$(BLUE)  Dashboard — pytest$(RESET)"
 	@cd dashboard && python -m pytest tests/ --tb=short
 
-#  ETL Talend 
+#  ETL Talend
 
 ## Lance le pipeline ETL Talend (Linux)
-etl-run: 
+etl-run:
 	cd talend/lancement && bash lancement.sh
 
 ## Vérifie la structure des 9 jobs
-etl-validate: 
+etl-validate:
 	@echo "Vérification..."
 	@for job in pays gare operateur type_train ligne trajet exploite itineraire emission; do \
 		if [ ! -f "talend/Jobs/Jobs/$$job/$${job}_0_1.jar" ]; then \
@@ -110,33 +110,33 @@ etl-validate:
 	done
 	@echo "Tous les 9 jobs OK"
 
-#  Database 
+#  Database
 ## psql dans le container
-db-shell: 
+db-shell:
 	docker compose exec postgres psql -U postgres -d mspr2
 
 ## Génère un dump SQL daté
-db-dump: 
+db-dump:
 	@DATESTAMP=$$(date +%Y-%m-%d_%H%M%S); \
 	docker compose exec postgres pg_dump -U postgres -d mspr2 \
 		> talend/dump/mspr2_dump_$$DATESTAMP.sql && \
 	echo "talend/dump/mspr2_dump_$$DATESTAMP.sql"
 
 ## Restaure le dump le plus récent
-db-restore: 
+db-restore:
 	@FILE=$${FILE:-$$(ls -t talend/dump/*.sql | head -1)}; \
 	docker compose exec -T postgres psql -U postgres -d mspr2 < $$FILE && \
 	echo "Restauré"
 
-#  Monitoring 
+#  Monitoring
 
 ## Ouvre Grafana
-monitoring: 
+monitoring:
 	@command -v xdg-open >/dev/null 2>&1 && xdg-open http://localhost:3010 || \
 	command -v open >/dev/null 2>&1 && open http://localhost:3010 || \
 	echo "Ouvrir : http://localhost:3010"
 
-#  CI locale 
-ci-local: etl-validate frontend-test backend-test 
+#  CI locale
+ci-local: etl-validate frontend-test backend-test
 	@echo ""
 	@echo "$(GREEN)CI locale OK — tu peux push.$(RESET)"

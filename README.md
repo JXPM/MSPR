@@ -1,9 +1,9 @@
 # ObRail Europe — MSPR TPRE532
 
-> **Certification Professionnelle Développeur en Intelligence Artificielle et Data Science** — RNCP36581  
+> **Certification Professionnelle Développeur en Intelligence Artificielle et Data Science** — RNCP36581
 > Bloc E6.1 · *Créer un modèle de données d'une solution I.A en utilisant des méthodes de Data Science*
 
-Pipeline ETL automatisé · Base PostgreSQL relationnelle · API REST FastAPI · Dashboard analytique Streamlit  
+Pipeline ETL automatisé · Base PostgreSQL relationnelle · API REST FastAPI · Dashboard analytique Streamlit
 appliqués aux flux ferroviaires européens pour l'observatoire **ObRail Europe**.
 
 ---
@@ -136,7 +136,7 @@ Le schéma est structuré en **trois couches logiques** garantissant une sépara
 | `exploite` | `(code_operateur, id_ligne)` | Opérateur exploite une Ligne, avec un rang |
 | `utilisation` | `(code_operateur, id_type_train)` | Opérateur utilise un Type de train |
 
-> Le script SQL complet est dans [`MCD_et_BDD/mspr.sql`](MCD_et_BDD/mspr.sql).  
+> Le script SQL complet est dans [`MCD_et_BDD/mspr.sql`](MCD_et_BDD/mspr.sql).
 > Les requêtes de vérification qualité sont dans [`MCD_et_BDD/requetes_verification.sql`](MCD_et_BDD/requetes_verification.sql).
 
 ---
@@ -174,7 +174,7 @@ L'intégration est orchestrée avec **Talend Open Studio for Data Integration** 
 ```
 empreinte_avion_kg = distance_km × 0.158
 ```
-Facteur d'émission **ADEME / BEIS** : 0.158 kg CO₂e par km par passager pour l'aviation.  
+Facteur d'émission **ADEME / BEIS** : 0.158 kg CO₂e par km par passager pour l'aviation.
 L'empreinte train (`empreinte_train_kg`) est directement fournie par le champ `emissions_co2e` de `trips.json` (Back-on-Track).
 
 ---
@@ -183,8 +183,8 @@ L'empreinte train (`empreinte_train_kg`) est directement fournie par le champ `e
 
 L'API expose les données ferroviaires en JSON via une architecture RESTful.
 
-**Base URL :** `http://localhost:8000`  
-**Documentation interactive :** `http://localhost:8000/docs` *(Swagger UI auto-généré)*  
+**Base URL :** `http://localhost:8000`
+**Documentation interactive :** `http://localhost:8000/docs` *(Swagger UI auto-généré)*
 **Métriques Prometheus :** `http://localhost:8000/metrics`
 
 ### Architecture interne
@@ -526,7 +526,7 @@ MSPR3/
 
 ## 14. Équipe
 
-Projet réalisé dans le cadre de la **MSPR TPRE532** — Promotion 2025-2026 DIA/DIADS  
+Projet réalisé dans le cadre de la **MSPR TPRE532** — Promotion 2025-2026 DIA/DIADS
 Certification Professionnelle Développeur en Intelligence Artificielle et Data Science (RNCP36581)
 
 | Membre | Rôle principal |

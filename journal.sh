@@ -1,4 +1,4 @@
-# Créer un nouveau dépôt GitHub 
+# Créer un nouveau dépôt GitHub
 git init
 git branch -M main
 git add .
@@ -22,11 +22,11 @@ git add .
 git commit -m "maj"
 git push origin api
 
-# pull  
+# pull
 git pull origin main
 
 # switch branch
-git checkout  joseph 
+git checkout  joseph
 
 git branch
 git status

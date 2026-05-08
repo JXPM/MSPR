@@ -1,5 +1,5 @@
 
--- TESTS DE COHÉRENCE  
+-- TESTS DE COHÉRENCE
 
 -- 1. Y a-t-il des trajets qui ne sont liés à aucune ligne ?
 SELECT t.trajet_id
@@ -16,7 +16,7 @@ WHERE t.trajet_id IS NULL;
 -- 3. Quels sont les trajets qui émettent le plus de CO2 ?
 SELECT trajet_id, empreinte_train_kg
 FROM emission
-ORDER BY empreinte_train_kg DESC 
+ORDER BY empreinte_train_kg DESC
 LIMIT 10;
 
 -- 4. Quelle ligne produit le plus de CO2 au total ?

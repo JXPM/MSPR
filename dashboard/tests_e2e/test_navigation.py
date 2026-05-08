@@ -28,4 +28,3 @@ def test_nav_supervision(page: Page, base_url: str):
     page.wait_for_load_state("networkidle")
     page.locator(".st-key-nav_Supervision button").click()
     expect(page.locator("h1")).to_contain_text("Supervision", timeout=15000)
-    

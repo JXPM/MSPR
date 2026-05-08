@@ -36,9 +36,9 @@ class TestNormalizeName:
         assert _normalize_name("  Paris Nord  ") == "paris nord"
 
     def test_mojibake_then_normalize(self):
-        a = _normalize_name("MÃ¼nchen")  
-        b = _normalize_name("München")   
-        c = _normalize_name("Munchen")   
+        a = _normalize_name("MÃ¼nchen")
+        b = _normalize_name("München")
+        c = _normalize_name("Munchen")
         assert a == b == c
 
     def test_empty(self):
