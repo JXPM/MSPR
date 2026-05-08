@@ -2,7 +2,7 @@ name: ObRail Europe — CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop,j-monitoring]
   pull_request:
     branches: [main]
 
@@ -83,7 +83,7 @@ jobs:
         working-directory: backend
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_DB: mspr2_test
           POSTGRES_USER: postgres
@@ -163,7 +163,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:17-alpine
         env:
           POSTGRES_DB: mspr2
           POSTGRES_USER: postgres
@@ -182,7 +182,15 @@ jobs:
           distribution: 'temurin'
           java-version: '11'
       - name: Install psql
-        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+        run: |
+          sudo apt-get install -y curl gnupg2
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/postgresql-archive-keyring.gpg] \
+            https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-17
       - name: Restore latest dump
         env:
           PGPASSWORD: postgres
@@ -234,7 +242,51 @@ jobs:
           path: talend/dump-ci/*.sql
           retention-days: 30
 
-  #  DOCKER 
+  #  E2E Playwright
+  e2e-test:
+    name: E2E · Playwright
+    needs: [frontend-test, backend-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start stack
+        run: docker compose up -d
+        env:
+          POSTGRES_PASSWORD: postgres
+          GRAFANA_USER: admin
+          GRAFANA_PASSWORD: admin
+
+      - name: Wait for Streamlit (max 60s)
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8501/_stcore/health && echo "Streamlit ready" && break
+            echo "Waiting… ($i/30)"
+            sleep 2
+          done
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright + deps
+        working-directory: dashboard
+        run: |
+          pip install --upgrade pip
+          pip install playwright pytest-playwright
+          playwright install chromium
+
+      - name: Run E2E tests
+        working-directory: dashboard
+        env:
+          E2E_BASE_URL: http://localhost:8501
+        run: pytest tests_e2e/ -v
+
+      - name: Teardown
+        if: always()
+        run: docker compose down
+
+  #  DOCKER
   docker-frontend:
     name: Docker · frontend
     needs: [frontend-test]

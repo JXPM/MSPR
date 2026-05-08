@@ -1,4 +1,4 @@
-# ObRail Europe — MSPR TPRE612
+# ObRail Europe — MSPR TPRE532
 
 > **Certification Professionnelle Développeur en Intelligence Artificielle et Data Science** — RNCP36581  
 > Bloc E6.1 · *Créer un modèle de données d'une solution I.A en utilisant des méthodes de Data Science*
@@ -16,11 +16,14 @@ appliqués aux flux ferroviaires européens pour l'observatoire **ObRail Europe*
 4. [Processus ETL — Talend](#4-processus-etl--talend)
 5. [API REST — FastAPI](#5-api-rest--fastapi)
 6. [Dashboard — Streamlit](#6-dashboard--streamlit)
-7. [Installation pas à pas](#7-installation-pas-à-pas)
-8. [Structure du projet](#8-structure-du-projet)
-9. [Sources de données](#9-sources-de-données)
-10. [Stack technique](#10-stack-technique)
-11. [Équipe](#11-équipe)
+7. [Monitoring & Observabilité](#7-monitoring--observabilité)
+8. [Sécurité](#8-sécurité)
+9. [Tests](#9-tests)
+10. [Installation Docker (recommandée)](#10-installation-docker-recommandée)
+11. [Structure du projet](#11-structure-du-projet)
+12. [Sources de données](#12-sources-de-données)
+13. [Stack technique](#13-stack-technique)
+14. [Équipe](#14-équipe)
 
 ---
 
@@ -65,22 +68,29 @@ Les données ferroviaires européennes sont fragmentées entre de multiples sour
                   └─────────┬──────────┘
                             │
                   ┌─────────▼──────────┐
-                  │  PostgreSQL 14+    │
-                  │  Base : obrail     │
+                  │  PostgreSQL 17     │
+                  │  Base : mspr2      │
                   │  11 tables         │
                   └─────────┬──────────┘
                             │
                   ┌─────────▼──────────┐
                   │  API FastAPI       │  :8000
                   │  SQLAlchemy ORM    │
-                  │  Pydantic schemas  │
-                  └─────────┬──────────┘
-                            │  HTTP/JSON
-                  ┌─────────▼──────────┐
-                  │  Dashboard         │  :8501
-                  │  Streamlit         │
-                  │  Plotly + Mapbox   │
-                  └────────────────────┘
+                  │  Rate limiting     │
+                  │  Security headers  │
+                  │  /metrics (Prom.)  │
+                  └──────┬──────┬──────┘
+                         │      │
+              HTTP/JSON  │      │ /metrics
+                  ┌──────▼──┐  ┌▼──────────┐
+                  │Dashboard│  │ Prometheus │  :9090
+                  │Streamlit│  │  scraping  │
+                  │  :8501  │  └─────┬──────┘
+                  └─────────┘        │
+                                ┌────▼──────┐
+                                │  Grafana  │  :3010
+                                │ dashboard │
+                                └───────────┘
 ```
 
 ---
@@ -175,19 +185,19 @@ L'API expose les données ferroviaires en JSON via une architecture RESTful.
 
 **Base URL :** `http://localhost:8000`  
 **Documentation interactive :** `http://localhost:8000/docs` *(Swagger UI auto-généré)*  
-**Schéma OpenAPI :** `http://localhost:8000/openapi.json`
+**Métriques Prometheus :** `http://localhost:8000/metrics`
 
 ### Architecture interne
 
 ```
 backend/
 ├── app/
-│   ├── main.py          ← Initialisation FastAPI + inclusion des routers
-│   ├── database.py      ← Engine SQLAlchemy + session factory + Base ORM
+│   ├── main.py          ← FastAPI + middlewares sécurité + rate limiting + Prometheus
+│   ├── database.py      ← Engine SQLAlchemy + session factory
 │   ├── models/          ← Classes ORM (SQLAlchemy declarative)
 │   ├── schemas/         ← Schémas Pydantic (validation requête/réponse)
 │   ├── routes/          ← Routers FastAPI (un fichier par domaine)
-│   └── services/        ← Logique métier (séparation routes / requêtes DB)
+│   └── services/        ← Logique métier
 ```
 
 ### Référence complète des endpoints
@@ -197,74 +207,31 @@ backend/
 | Méthode | Endpoint | Réponse | Description |
 |---|---|---|---|
 | `GET` | `/health` | `{"status": "ok"}` | Vérification que l'API répond |
+| `GET` | `/metrics` | texte Prometheus | Métriques pour Prometheus |
 
 #### Données ferroviaires
 
 | Méthode | Endpoint | Réponse | Description |
 |---|---|---|---|
-| `GET` | `/trajets` | `List[TrajetResponse]` | Tous les trajets |
-| `GET` | `/trajets/{trajet_id}` | `TrajetResponse` ou `404` | Trajet par identifiant |
+| `GET` | `/trajets` | `List[TrajetResponse]` | Tous les trajets *(rate limité)* |
+| `GET` | `/trajets/{trajet_id}` | `TrajetResponse` ou `404` | Trajet par identifiant *(rate limité)* |
 | `GET` | `/gares` | `List[GareResponse]` | Toutes les gares avec coordonnées GPS |
 | `GET` | `/lignes` | `List[LigneResponse]` | Toutes les lignes avec type `JOUR`/`NUIT` |
 
-#### Statistiques & KPIs (Dashboard)
+#### Statistiques & KPIs *(rate limités)*
 
 | Méthode | Endpoint | Réponse | Description |
 |---|---|---|---|
 | `GET` | `/stats/trajets/count` | `{"total_trajets": int}` | Nombre total de trajets |
 | `GET` | `/stats/lignes/count` | `{"total_lignes": int}` | Nombre total de lignes |
 | `GET` | `/stats/gares/count` | `{"total_gares": int}` | Nombre total de gares |
+| `GET` | `/stats/pays/count` | `{"total_pays": int}` | Nombre de pays couverts |
 | `GET` | `/stats/trajets/type` | `{"JOUR": int, "NUIT": int}` | Répartition trajets jour vs nuit |
 | `GET` | `/stats/emissions` | `{"train": float, "avion": float}` | Empreinte CO₂ moyenne par trajet (kg) |
 | `GET` | `/stats/operateurs` | `[{"operateur": str, "trajets": int}]` | Volume de trajets par opérateur |
-| `GET` | `/stats/trajets/map` | `[{"lat_depart", "lon_depart", "lat_arrivee", "lon_arrivee"}]` | Segments géographiques pour la carte |
+| `GET` | `/stats/trajets/map` | `[{lat/lon départ/arrivée}]` | Segments géographiques pour la carte |
 
-### Exemples de réponses
-
-**`GET /stats/trajets/type`**
-```json
-{
-  "JOUR": 6845,
-  "NUIT": 4419
-}
-```
-
-**`GET /stats/emissions`**
-```json
-{
-  "train": 125.4,
-  "avion": 932.8
-}
-```
-
-**`GET /stats/trajets/map`** (extrait)
-```json
-[
-  {
-    "lat_depart": 48.8534,
-    "lon_depart": 2.3488,
-    "lat_arrivee": 50.6292,
-    "lon_arrivee": 3.0573
-  }
-]
-```
-
-**`GET /trajets/{trajet_id}` — 404**
-```json
-{
-  "detail": "Trajet not found"
-}
-```
-
-### Configuration base de données
-
-Variables d'environnement dans `backend/.env` :
-
-```env
-DATABASE_URL=postgresql://postgres:<mot_de_passe>@localhost:5432/obrail
-```
-
-La connexion est gérée par SQLAlchemy avec un pool de sessions (`SessionLocal`) et le pattern de dépendance FastAPI `Depends(get_db)` pour l'injection automatique en fin de requête.
+> Les endpoints `/trajets` et `/stats/*` retournent **HTTP 429** au-delà de 60 requêtes/minute par IP.
 
 ---
 
@@ -276,267 +243,296 @@ Tableau de bord analytique temps réel connecté à l'API FastAPI.
 
 ### Pages
 
-| Page | Statut | Contenu |
-|---|---|---|
-| **Aperçu** | ✅ Disponible | KPIs, carte interactive, CO₂ train vs avion, qualité des données, opérateurs |
-| **Réseau** | 🚧 En développement | Analyse de la couverture géographique |
-| **Impact Environnemental** | 🚧 En développement | Comparaison détaillée des émissions |
-| **Qualité des Données** | 🚧 En développement | Taux de complétude, doublons, anomalies |
+| Page | Contenu |
+|---|---|
+| **Trajets** | Liste des trajets, itinéraires, carte réseau |
+| **Observatoire** | KPIs, CO₂ train vs avion, répartition jour/nuit, opérateurs |
+| **Supervision** | État des endpoints, latence, taux d'erreur 5xx (via Prometheus) |
 
-### KPIs — Page Aperçu
+### Accessibilité RGAA
 
-| KPI | Source API | Description |
-|---|---|---|
-| Trajets | `/stats/trajets/count` | Nombre total de circulations |
-| Opérateurs | `/stats/operateurs` | Nombre d'opérateurs actifs |
-| Lignes | `/stats/lignes/count` | Nombre de lignes du réseau |
-| Pays couverts | Statique | 24 pays européens |
-
-### Composants
-
-| Composant | Fichier | Librairie | Description |
-|---|---|---|---|
-| Pie Jour/Nuit | `components/charts.py` | Plotly | Répartition réelle depuis `/stats/trajets/type` |
-| CO₂ Trains vs Avions | `components/charts.py` | Plotly | Barres verticales, facteur ADEME |
-| Carte réseau | `components/map.py` | Plotly + Mapbox | Segments great-circle + gares avec effet glow |
-| Qualité des données | `app.py` | `components.v1.html` | Taux de valeurs manquantes et doublons |
-| Volume opérateurs | `components/charts.py` | Plotly | Barres horizontales par opérateur |
-
-### Stratégie de cache
-
-Toutes les données API sont mises en cache avec `@st.cache_data` pour éviter les requêtes répétées à chaque interaction utilisateur. Le cache est invalidé au redémarrage du serveur.
+- Contraste texte `--muted` : ratio **5.2:1** (conforme RGAA AA, seuil 4.5:1)
+- Skip link "Aller au contenu principal" présent dans le DOM
+- Navigation clavier fonctionnelle
 
 ### Architecture client HTTP
 
-Le service `dashboard/services/api_service.py` centralise tous les appels vers l'API FastAPI. Chaque fonction gère les erreurs réseau avec un `try/except` et retourne une valeur par défaut pour ne pas bloquer l'affichage.
+`dashboard/services/api_service.py` centralise tous les appels API et les requêtes Prometheus. Chaque fonction est défensive : elle retourne une valeur par défaut sans lever d'exception en cas d'erreur réseau.
 
 ---
 
-## 7. Installation pas à pas
+## 7. Monitoring & Observabilité
 
-### Prérequis
+La stack de monitoring collecte et visualise les métriques de l'API en temps réel.
 
-| Outil | Version minimale | Usage |
+### Composants
+
+| Service | URL | Rôle |
 |---|---|---|
-| Python | 3.10+ | Backend + Dashboard |
-| PostgreSQL | 14+ | Base de données |
-| Talend Open Studio | 8.x | ETL (rejouer les jobs) |
-| Git | — | Gestion de version |
+| **Prometheus** | http://localhost:9090 | Collecte les métriques `/metrics` du backend toutes les 15s |
+| **Grafana** | http://localhost:3010 | Visualisation — login `admin` / `admin` |
 
-### Étape 1 — Cloner le dépôt
+### Dashboard Grafana — ObRail FastAPI Metrics
+
+Le dashboard `monitoring/grafana/dashboards/fastapi-observability.json` contient 6 panels :
+
+| Panel | Métrique PromQL |
+|---|---|
+| Requêtes / seconde | `sum(rate(http_request_duration_seconds_count[1m])) by (handler)` |
+| Taux d'erreurs 4xx / 5xx | `sum(rate(...{status_code=~"4.."}[1m]))` |
+| Latence p50 / p95 / p99 | `histogram_quantile(0.50/0.95/0.99, ...)` |
+| Requêtes en cours | `http_requests_inprogress` |
+| Total requêtes | `sum(http_request_duration_seconds_count)` |
+| Backend UP/DOWN | `up{job="obrail-backend"}` |
+
+### Reproductibilité
+
+La datasource Prometheus dispose d'un **UID fixe** `obrail-prometheus` défini dans `monitoring/grafana/datasources/prometheus.yml`. Le dashboard JSON référence cet UID littéralement — le dashboard s'affiche immédiatement sur toute machine sans configuration manuelle.
+
+---
+
+## 8. Sécurité
+
+### Rate Limiting
+
+Les endpoints `/trajets` et `/stats/*` sont limités à **60 requêtes/minute par IP**. Au-delà, l'API retourne :
+
+```json
+HTTP 429 Too Many Requests
+{"detail": "Rate limit exceeded. Try again in 60 seconds."}
+```
+
+Implémentation : middleware `RateLimitMiddleware` dans `backend/app/main.py`, utilisant `slowapi` comme dépendance.
+
+### Headers de sécurité HTTP
+
+Chaque réponse de l'API inclut ces headers injectés par `SecurityHeadersMiddleware` :
+
+| Header | Valeur | Protection |
+|---|---|---|
+| `X-Content-Type-Options` | `nosniff` | Empêche le MIME sniffing |
+| `X-Frame-Options` | `DENY` | Empêche le clickjacking |
+| `X-XSS-Protection` | `1; mode=block` | Filtre XSS navigateurs anciens |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Contrôle les informations de référent |
+
+### CORS
+
+L'API accepte les requêtes cross-origin uniquement depuis `http://localhost:5173` et `http://localhost:4173` (environnements de développement Vite). En production, configurer `CORS_ORIGINS` dans le `.env`.
+
+### RGPD
+
+Aucune donnée personnelle collectée ni traitée. Toutes les sources sont issues de l'open data public. Traçabilité des imports assurée par la table `source`.
+
+---
+
+## 9. Tests
+
+### Tests unitaires
+
+| Suite | Commande | Couverture |
+|---|---|---|
+| Backend (91 tests) | `cd backend && pytest tests/ -v` | Routes, services, modèles, qualité des données |
+| Dashboard (31 tests) | `cd dashboard && pytest tests/ -v` | Client API, graphiques Plotly, composants UI |
+
+### Tests E2E Playwright
 
 ```bash
+# Installer le navigateur (une seule fois)
+playwright install chromium
+
+# Lancer les tests (nécessite la stack en cours d'exécution)
+cd dashboard && pytest tests_e2e/ -v
+```
+
+| Test | Description |
+|---|---|
+| `test_home_loads` | La page charge et contient "ObRail" |
+| `test_nav_trajets` | Navigation vers Trajets, tableau visible |
+| `test_nav_observatoire` | Page Observatoire sans erreur |
+| `test_nav_supervision` | Page Supervision contient "health" ou "api" |
+| `test_skip_link_exists` | Skip link RGAA présent dans le DOM |
+| `test_h1_present` | Balise `<h1>` présente sur la page |
+
+### CI/CD GitHub Actions
+
+Le pipeline `.github/workflows/main.yml` exécute automatiquement à chaque push :
+
+| Job | Déclencheur | Description |
+|---|---|---|
+| `frontend-test` | Changements `dashboard/` | Lint ruff + tests unitaires |
+| `backend-test` | Changements `backend/` | Lint ruff + tests avec PostgreSQL |
+| `talend-lint` | Changements `talend/` | ShellCheck + scan secrets |
+| `talend-etl-dryrun` | Changements `talend/` | Exécution ETL complète en base test |
+| `e2e-test` | Après frontend + backend | Stack Docker + tests Playwright |
+| `docker-frontend` | Push sur `main` | Build + push image GHCR |
+| `docker-backend` | Push sur `main` | Build + push image GHCR |
+
+---
+
+## 10. Installation Docker (recommandée)
+
+La stack complète se lance en une commande. Voir [`LANCEMENT.md`](LANCEMENT.md) pour le guide détaillé.
+
+### Démarrage rapide
+
+```bash
+# 1. Cloner le projet
 git clone https://github.com/JXPM/MSPR.git
 cd MSPR
-git checkout api
+
+# 2. Configurer l'environnement
+cp .env.example .env
+# Éditer .env avec les mots de passe souhaités
+
+# 3. Lancer toute la stack (5 services)
+docker compose up -d --build
 ```
 
-### Étape 2 — Créer l'environnement virtuel (racine du projet)
+### Services démarrés
+
+| Service | URL | Description |
+|---|---|---|
+| Dashboard | http://localhost:8501 | Interface principale |
+| API | http://localhost:8000/docs | Documentation Swagger |
+| Grafana | http://localhost:3010 | Monitoring (admin/admin) |
+| Prometheus | http://localhost:9090 | Métriques brutes |
+| PostgreSQL | localhost:5433 | Base de données |
+
+### Commandes utiles (avec `make`)
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate          # Linux / macOS
-# venv\Scripts\activate           # Windows
-pip install -r backend/requirements.txt
-pip install -r dashboard/requirements.txt
-```
-
-### Étape 3 — Configurer et initialiser la base de données
-
-```bash
-# Créer la base
-psql -U postgres -c "CREATE DATABASE obrail;"
-
-# Créer le schéma (11 tables)
-psql -U postgres -d obrail -f MCD_et_BDD/mspr.sql
-
-# Charger les données
-psql -U postgres -d obrail -f MCD_et_BDD/remplissage.sql
-
-# Vérifier la qualité des données (optionnel)
-psql -U postgres -d obrail -f MCD_et_BDD/requetes_verification.sql
-```
-
-### Étape 4 — Configurer les variables d'environnement
-
-```bash
-# Créer le fichier .env dans le dossier backend
-echo "DATABASE_URL=postgresql://postgres:<mot_de_passe>@localhost:5432/obrail" > backend/.env
-```
-
-### Étape 5 — Lancer l'API backend
-
-```bash
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-> L'API est disponible sur `http://localhost:8000`  
-> Swagger UI : `http://localhost:8000/docs`
-
-### Étape 6 — Lancer le dashboard (dans un second terminal)
-
-```bash
-cd dashboard
-streamlit run app.py
-```
-
-> Dashboard disponible sur `http://localhost:8501`
-
-### Vérification rapide
-
-```bash
-# Tester l'API
-curl http://localhost:8000/health
-# Réponse attendue : {"status":"ok"}
-
-curl http://localhost:8000/stats/trajets/type
-# Réponse attendue : {"JOUR": X, "NUIT": Y}
+make up          # Démarrer
+make down        # Arrêter
+make logs        # Voir les logs
+make test        # Lancer tous les tests
+make ps          # État des containers
+make db-shell    # Shell PostgreSQL
 ```
 
 ---
 
-## 8. Structure du projet
+## 11. Structure du projet
 
 ```
-MSPR/
-│
+MSPR3/
 ├── backend/                          # API REST FastAPI
 │   ├── app/
-│   │   ├── main.py                   # Point d'entrée — instancie FastAPI et include les routers
-│   │   ├── database.py               # Engine SQLAlchemy, SessionLocal, Base, get_db()
-│   │   ├── models/                   # ORM SQLAlchemy (un fichier par entité)
-│   │   │   ├── pays.py
-│   │   │   ├── gare.py
-│   │   │   ├── operateur.py
-│   │   │   ├── ligne.py
-│   │   │   ├── trajet.py
-│   │   │   ├── itineraire.py
-│   │   │   ├── emission.py
-│   │   │   └── type_train.py
-│   │   ├── schemas/                  # Schémas Pydantic (validation I/O)
-│   │   │   ├── gare_schema.py
-│   │   │   ├── trajet_schema.py
-│   │   │   ├── ligne_schema.py
-│   │   │   ├── operateur_schema.py
-│   │   │   ├── pays_schema.py
-│   │   │   ├── emission_schema.py
-│   │   │   ├── itineraire_schema.py
-│   │   │   └── type_train_schema.py
-│   │   ├── routes/                   # Routers FastAPI (un fichier par domaine)
-│   │   │   ├── health_routes.py      # GET /health
-│   │   │   ├── trajet_routes.py      # GET /trajets, GET /trajets/{id}
-│   │   │   ├── gare_routes.py        # GET /gares
-│   │   │   ├── ligne_routes.py       # GET /lignes
-│   │   │   └── stats_routes.py       # GET /stats/...
-│   │   └── services/                 # Logique métier (séparé des routes)
-│   │       ├── stats_service.py      # count_trajets, count_lignes, count_gares
-│   │       ├── trajet_service.py
-│   │       ├── gare_service.py
-│   │       └── ligne_service.py
-│   ├── .env                          # Variables d'environnement (non versionné)
+│   │   ├── main.py                   # FastAPI + middlewares sécurité + rate limiting
+│   │   ├── database.py               # Engine SQLAlchemy, SessionLocal
+│   │   ├── models/                   # ORM SQLAlchemy
+│   │   ├── schemas/                  # Schémas Pydantic
+│   │   ├── routes/                   # Routers (health, trajet, gare, ligne, stats)
+│   │   └── services/                 # Logique métier
+│   ├── tests/                        # 91 tests unitaires pytest
+│   ├── Dockerfile
 │   └── requirements.txt
 │
 ├── dashboard/                        # Tableau de bord Streamlit
-│   ├── app.py                        # Application principale + routing des pages
-│   ├── components/
-│   │   ├── charts.py                 # Graphiques Plotly (pie, CO2, opérateurs)
-│   │   ├── kpi_cards.py              # Cartes KPI
-│   │   └── map.py                    # Carte réseau ferroviaire (Scattermapbox)
-│   ├── _pages/                       # Pages futures (non actives — préfixe _ exclut Streamlit)
-│   │   ├── overview.py
-│   │   ├── network.py
-│   │   ├── environment.py
-│   │   └── data_quality.py
+│   ├── app.py                        # Application principale
+│   ├── components/                   # Charts, KPI, carte
+│   ├── _pages/                       # Pages (Trajets, Observatoire, Supervision)
 │   ├── services/
-│   │   └── api_service.py            # Client HTTP vers l'API FastAPI
-│   ├── config/
-│   │   └── api_config.py             # URL de base de l'API
+│   │   └── api_service.py            # Client HTTP API + requêtes Prometheus
+│   ├── tests/                        # 31 tests unitaires pytest
+│   ├── tests_e2e/                    # Tests Playwright (navigation + accessibilité)
+│   ├── Dockerfile
 │   └── requirements.txt
 │
-├── MCD_et_BDD/                       # Base de données & ETL
-│   ├── mspr.sql                      # Script de création du schéma PostgreSQL (11 tables)
-│   ├── remplissage.sql               # Script de chargement des données
-│   ├── requetes_verification.sql     # Requêtes de contrôle qualité
-│   ├── MCDFinal.loo                  # Fichier source Looping (MCD éditable)
-│   └── integration via talend.txt   # Documentation des jobs ETL Talend
+├── monitoring/
+│   ├── prometheus.yml                # Config scraping Prometheus
+│   └── grafana/
+│       ├── dashboards/
+│       │   ├── dashboards.yml        # Provisioning Grafana
+│       │   └── fastapi-observability.json  # Dashboard 6 panels
+│       └── datasources/
+│           └── prometheus.yml        # Datasource UID fixe : obrail-prometheus
 │
-├── venv/                             # Environnement virtuel Python (non versionné)
-├── MCDFinal.jpg                      # Export visuel du MCD
-├── journal.sh                        # Journal de bord du projet
-├── .gitignore
+├── talend/                           # ETL Talend
+│   ├── Jobs/                         # 9 jobs compilés (.jar)
+│   ├── dump/                         # Dumps PostgreSQL
+│   └── lancement/                    # Scripts de lancement
+│
+├── .github/workflows/main.yml        # CI/CD GitHub Actions
+├── docker-compose.yml                # Orchestration 5 services
+├── Makefile                          # Commandes raccourcies
+├── .env.example                      # Template variables d'environnement
+├── why.md                            # Journal des modifications techniques
+├── LANCEMENT.md                      # Guide de démarrage détaillé
 └── README.md                         # Ce fichier
 ```
 
 ---
 
-## 9. Sources de données
+## 12. Sources de données
 
-| Source | Format | Tables alimentées | Licence | URL |
-|---|---|---|---|---|
-| Back-on-Track Night Train Database | JSON (`trips.json`) | `operateur`, `ligne`, `trajet`, `itineraire`, `emission` | Open Data | [back-on-track.eu](https://back-on-track.eu/) |
-| Trainline EU — stations.csv | CSV | `gare` | Open Data (MIT) | [github.com/trainline-eu/stations](https://github.com/trainline-eu/stations) |
-| ISO 3166-1 | CSV | `pays` | Domaine public | [iso.org](https://www.iso.org/iso-3166-country-codes.html) |
-| SNCF Open Data (GTFS) | ZIP/CSV | `type_train` | Open Data | [transport.data.gouv.fr](https://transport.data.gouv.fr/) |
-| emission.csv (calculé) | CSV | `emission` | Calculé (ADEME/BEIS) | Facteur : 0.158 kg CO₂e/km/passager |
-
-### Webographie complémentaire
-
-- [European Data Portal](https://data.europa.eu/) — Données ouvertes européennes
-- [Eurostat Transport](https://ec.europa.eu/eurostat/web/transport) — Statistiques ferroviaires
-- [MobilityDatabase](https://mobilitydatabase.org/) — Jeux de données GTFS internationaux
-- [Transitland](https://www.transit.land/) — Réseau de transport mondial
+| Source | Format | Tables alimentées | Licence |
+|---|---|---|---|
+| Back-on-Track Night Train Database | JSON | `operateur`, `ligne`, `trajet`, `itineraire`, `emission` | Open Data |
+| Trainline EU — stations.csv | CSV | `gare` | Open Data (MIT) |
+| ISO 3166-1 | CSV | `pays` | Domaine public |
+| SNCF Open Data (GTFS) | ZIP/CSV | `type_train` | Open Data |
+| emission.csv (calculé) | CSV | `emission` | Calculé (ADEME/BEIS 0.158 kg CO₂e/km) |
 
 ---
 
-## 10. Stack technique
+## 13. Stack technique
 
 ### Backend
 
-| Technologie | Version | Rôle |
-|---|---|---|
-| **Python** | 3.10+ | Langage principal |
-| **FastAPI** | latest | Framework API REST asynchrone avec génération Swagger auto |
-| **SQLAlchemy** | latest | ORM + gestion des sessions et du pool de connexions |
-| **Pydantic** | v2 | Validation et sérialisation des schémas de données |
-| **Alembic** | latest | Migrations de schéma (versionnement de la DB) |
-| **PostgreSQL** | 14+ | SGBD relationnel — base `obrail` |
-| **psycopg2-binary** | latest | Driver PostgreSQL pour Python |
-| **python-dotenv** | latest | Chargement des variables d'environnement depuis `.env` |
-| **pytest + httpx** | latest | Tests automatisés de l'API |
-| **uvicorn** | latest | Serveur ASGI pour FastAPI |
+| Technologie | Rôle |
+|---|---|
+| **Python 3.12** | Langage principal |
+| **FastAPI** | Framework API REST asynchrone + Swagger auto |
+| **SQLAlchemy** | ORM + pool de connexions |
+| **Pydantic v2** | Validation et sérialisation |
+| **Alembic** | Migrations de schéma |
+| **PostgreSQL 17** | SGBD relationnel |
+| **prometheus-fastapi-instrumentator** | Exposition des métriques `/metrics` |
+| **slowapi** | Rate limiting par IP |
+| **pytest + httpx** | Tests automatisés |
 
 ### Dashboard
 
-| Technologie | Version | Rôle |
-|---|---|---|
-| **Streamlit** | latest | Framework de tableau de bord web en Python |
-| **Plotly** | latest | Visualisations interactives (graphiques, carte Mapbox) |
-| **Pandas** | latest | Manipulation et analyse des DataFrames |
-| **Requests** | latest | Client HTTP pour consommer l'API FastAPI |
+| Technologie | Rôle |
+|---|---|
+| **Streamlit** | Framework tableau de bord web |
+| **Plotly** | Visualisations interactives |
+| **Pandas** | Manipulation des données |
+| **Requests** | Client HTTP vers l'API |
+| **Playwright** | Tests E2E navigateur |
+
+### Monitoring
+
+| Technologie | Rôle |
+|---|---|
+| **Prometheus 2.55** | Collecte de métriques (scraping toutes les 15s) |
+| **Grafana 11.3** | Visualisation + alerting |
+
+### Infrastructure
+
+| Technologie | Rôle |
+|---|---|
+| **Docker + Docker Compose** | Conteneurisation et orchestration des 5 services |
+| **GitHub Actions** | CI/CD — tests, lint, build images, E2E |
 
 ### Data / ETL
 
 | Technologie | Rôle |
 |---|---|
-| **Talend Open Studio 8** | Orchestration ETL — jobs d'extraction, transformation et chargement |
+| **Talend Open Studio 8** | Orchestration ETL |
 | **PostgreSQL JDBC** | Connexion Talend → PostgreSQL |
-
-### Conformité RGPD
-
-Aucune donnée personnelle n'est collectée ou traitée. Toutes les sources sont issues de l'**open data** public. La traçabilité des imports est assurée par la table `source` (URL, format, date, volume). Les accès à la base sont restreints par authentification PostgreSQL.
 
 ---
 
-## 11. Équipe
+## 14. Équipe
 
-Projet réalisé dans le cadre de la **MSPR TPRE612** — Promotion 2025-2026 DIA/DIADS  
+Projet réalisé dans le cadre de la **MSPR TPRE532** — Promotion 2025-2026 DIA/DIADS  
 Certification Professionnelle Développeur en Intelligence Artificielle et Data Science (RNCP36581)
 
 | Membre | Rôle principal |
 |---|---|
-| **Kouamé Johan BILÉ** | API REST FastAPI, Dashboard Streamlit, Documentation, Conformité RGPD |
-| **Joseph HACCANDY** | ETL Talend, Modélisation BDD, Sources de données, Documentation |
+| **Kouamé Johan BILÉ** | API REST FastAPI, Dashboard Streamlit, Documentation |
+| **Joseph HACCANDY** | ETL Talend, Modélisation BDD, Sources de données, Sécurité, Monitoring |
 | **Glody KUTUMBAKANA** | ETL Talend, Modélisation BDD, Documentation |
 | **Nabil DIA** | API REST FastAPI, Dashboard Streamlit |
 

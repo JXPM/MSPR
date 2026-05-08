@@ -77,16 +77,17 @@ def stats_operateurs(db: Session = Depends(get_db)):
     result = (
         db.query(
             Operateur.nom_operateur,
+            Operateur.code_operateur,
             func.count(Trajet.trajet_id)
         )
         .outerjoin(
             Trajet,
             func.substring(Trajet.trajet_id, 1, 3) == Operateur.code_operateur
         )
-        .group_by(Operateur.nom_operateur)
+        .group_by(Operateur.nom_operateur, Operateur.code_operateur)
         .all()
     )
-    return [{"operateur": r[0], "trajets": r[1]} for r in result]
+    return [{"operateur": r[0], "code_operateur": r[1], "trajets": r[2]} for r in result]
 
 
 # =========================

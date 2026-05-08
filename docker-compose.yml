@@ -10,8 +10,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./talend/dump/mspr2_dump_2026-04-11.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./talend/dump/mspr2_dump_2026-04-12.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./talend/dump/dump_mspr2.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
