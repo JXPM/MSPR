@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Path
 from typing import List
 from app.schemas.trajet_schema import TrajetResponse
 from app.services import trajet_service
@@ -12,7 +12,7 @@ def get_trajets():
 
 
 @router.get("/{trajet_id}", response_model=TrajetResponse)
-def get_trajet(trajet_id: str):
+def get_trajet(trajet_id: str = Path(min_length=1, max_length=64)):
     trajet = trajet_service.get_trajet_by_id(trajet_id)
     if not trajet:
         raise HTTPException(status_code=404, detail="Trajet not found")
@@ -20,7 +20,7 @@ def get_trajet(trajet_id: str):
 
 
 @router.get("/{trajet_id:path}/itineraire")
-def get_trajet_itineraire(trajet_id: str):
+def get_trajet_itineraire(trajet_id: str = Path(min_length=1, max_length=64)):
     """Retourne la liste ordonnée des gares desservies par le trajet.
 
     On utilise le converter ``:path`` pour tolérer les ``/`` dans

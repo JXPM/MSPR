@@ -3,10 +3,21 @@ __pycache__/
 .env
 .venv/
 venv/
-.env
 .idea/
 .vscode/
 .sixth/
 *.log
 *.tmp.*
 .DS_Store
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Streamlit local secrets (use secrets.toml.example as template)
+.streamlit/secrets.toml
+
+# Codex / agent state
+.codex
+.codex/

@@ -54,7 +54,6 @@ jobs:
           pip install pytest pytest-cov ruff
       - name: Lint (ruff)
         run: ruff check .
-        continue-on-error: true
       - name: Verify Python files parse
         run: |
           python -m py_compile app.py services/api_service.py
@@ -108,12 +107,10 @@ jobs:
           pip install pytest pytest-cov ruff
       - name: Lint (ruff)
         run: ruff check app/
-        continue-on-error: true
       - name: Run tests
         run: pytest --cov=app --cov-report=xml -v
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mspr2_test
-        continue-on-error: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -218,7 +215,6 @@ jobs:
                  2>&1 | tee "../../../../talend-${JOB}.log" || true
             cd ..
           done
-        continue-on-error: true
       - name: Upload ETL logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -247,6 +243,7 @@ jobs:
     name: E2E · Playwright
     needs: [frontend-test, backend-test]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -273,14 +270,14 @@ jobs:
         working-directory: dashboard
         run: |
           pip install --upgrade pip
-          pip install playwright pytest-playwright
+          pip install playwright pytest-playwright pytest-timeout
           playwright install chromium
 
       - name: Run E2E tests
         working-directory: dashboard
         env:
           E2E_BASE_URL: http://localhost:8501
-        run: pytest tests_e2e/ -v
+        run: pytest tests_e2e/ -v --timeout=120
 
       - name: Teardown
         if: always()

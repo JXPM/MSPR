@@ -6,20 +6,23 @@ from app.models.gare import Gare
 
 def count_trajets():
     db = SessionLocal()
-    count = db.query(Trajet).count()
-    db.close()
-    return {"total_trajets": count}
+    try:
+        return {"total_trajets": db.query(Trajet).count()}
+    finally:
+        db.close()
 
 
 def count_lignes():
     db = SessionLocal()
-    count = db.query(Ligne).count()
-    db.close()
-    return {"total_lignes": count}
+    try:
+        return {"total_lignes": db.query(Ligne).count()}
+    finally:
+        db.close()
 
 
 def count_gares():
     db = SessionLocal()
-    count = db.query(Gare).count()
-    db.close()
-    return {"total_gares": count}
+    try:
+        return {"total_gares": db.query(Gare).count()}
+    finally:
+        db.close()

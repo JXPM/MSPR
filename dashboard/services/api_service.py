@@ -1,12 +1,23 @@
+import os
 import time
 from urllib.parse import quote
 
 import requests
 
-import os
 
-API_URL = os.getenv("API_URL", "http://localhost:8000")
-PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
+def _resolve(name: str, default: str) -> str:
+    """Lit un paramètre depuis st.secrets (Streamlit Cloud) puis l'env, sinon default."""
+    try:
+        import streamlit as st
+        if name in st.secrets:
+            return str(st.secrets[name])
+    except Exception:
+        pass
+    return os.getenv(name, default)
+
+
+API_URL = _resolve("API_URL", "http://localhost:8000")
+PROMETHEUS_URL = _resolve("PROMETHEUS_URL", "http://prometheus:9090")
 
 # ──────────────────────────────────────────────────────────
 #  Données métier

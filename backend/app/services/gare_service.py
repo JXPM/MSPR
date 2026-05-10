@@ -5,6 +5,7 @@ from app.models.gare import Gare
 
 def get_all_gares():
     db: Session = SessionLocal()
-    gares = db.query(Gare).all()
-    db.close()
-    return gares
+    try:
+        return db.query(Gare).all()
+    finally:
+        db.close()

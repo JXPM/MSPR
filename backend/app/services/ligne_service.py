@@ -5,11 +5,8 @@ from app.models.ligne import Ligne
 
 
 def get_all_lignes() -> List[Ligne]:
-
     db: Session = SessionLocal()
-
-    lignes = db.query(Ligne).all()
-
-    db.close()
-
-    return lignes
+    try:
+        return db.query(Ligne).all()
+    finally:
+        db.close()

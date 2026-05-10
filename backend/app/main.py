@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from collections import defaultdict
 
@@ -9,20 +10,20 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.routes import gare_routes, health_routes, ligne_routes, stats_routes, trajet_routes
 from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+
+def _parse_origins(raw: str) -> list[str]:
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+DEFAULT_ORIGINS = "http://localhost:5173,http://localhost:4173,http://localhost:8501"
+CORS_ORIGINS = _parse_origins(os.getenv("CORS_ORIGINS") or DEFAULT_ORIGINS)
 
 app = FastAPI(
     title="ObRail Europe API",
     description="API REST — dessertes ferroviaires européennes",
     version="1.0.0",
 )
-
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 Instrumentator().instrument(app).expose(app)
 
@@ -65,7 +66,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:4173"],  # dev + preview Vite
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

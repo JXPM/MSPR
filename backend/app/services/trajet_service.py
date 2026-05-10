@@ -37,25 +37,19 @@ def _normalize_name(value: str) -> str:
 
 
 def get_all_trajets() -> List[TrajetResponse]:
-
     db: Session = SessionLocal()
-
-    trajets = db.query(Trajet).all()
-
-    db.close()
-
-    return trajets
+    try:
+        return db.query(Trajet).all()
+    finally:
+        db.close()
 
 
 def get_trajet_by_id(trajet_id: str):
-
     db: Session = SessionLocal()
-
-    trajet = db.query(Trajet).filter(Trajet.trajet_id == trajet_id).first()
-
-    db.close()
-
-    return trajet
+    try:
+        return db.query(Trajet).filter(Trajet.trajet_id == trajet_id).first()
+    finally:
+        db.close()
 
 
 def get_itineraire_by_trajet(trajet_id: str):

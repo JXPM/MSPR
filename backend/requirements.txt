@@ -13,4 +13,3 @@ pytest
 httpx
 
 prometheus-fastapi-instrumentator
-slowapi
