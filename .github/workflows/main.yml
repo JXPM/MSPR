@@ -282,6 +282,10 @@ jobs:
       - name: Teardown
         if: always()
         run: docker compose down
+        env:
+          POSTGRES_PASSWORD: postgres
+          GRAFANA_USER: admin
+          GRAFANA_PASSWORD: admin
 
   #  DOCKER
   docker-frontend:
