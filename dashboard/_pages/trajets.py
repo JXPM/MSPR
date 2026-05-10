@@ -9,6 +9,15 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from components.icons import lucide
+from services.api_service import (
+    get_gares,
+    get_lignes,
+    get_operateurs,
+    get_trajet_itineraire,
+    get_trajets,
+)
+
 
 def _fix_mojibake(value: str) -> str:
     if not isinstance(value, str) or not value:
@@ -26,15 +35,6 @@ def _normalize_name(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", cleaned)
     ascii_only = "".join(c for c in decomposed if not unicodedata.combining(c))
     return ascii_only.casefold().strip()
-
-from components.icons import lucide
-from services.api_service import (
-    get_gares,
-    get_lignes,
-    get_operateurs,
-    get_trajet_itineraire,
-    get_trajets,
-)
 
 
 @st.cache_data(ttl=300)
