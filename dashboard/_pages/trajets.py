@@ -66,7 +66,7 @@ def _fmt_int(value: int) -> str:
     return f"{int(value):,}".replace(",", " ")
 
 
-def _safe_text(value, fallback: str = "Non renseigne") -> str:
+def _safe_text(value, fallback: str = "Non renseigné") -> str:
     if value is None:
         return fallback
     if isinstance(value, float) and math.isnan(value):
@@ -99,7 +99,7 @@ def _compute_duration(depart, arrivee) -> str:
         d = pd.to_datetime(depart, errors="coerce")
         a = pd.to_datetime(arrivee, errors="coerce")
         if pd.isna(d) or pd.isna(a):
-            return "Non calculee"
+            return "Non calculée"
         secs = int((a - d).total_seconds())
         if secs < 0:
             secs += 24 * 3600
@@ -107,7 +107,7 @@ def _compute_duration(depart, arrivee) -> str:
         m = rem // 60
         return f"{h}h{m:02d}"
     except Exception:
-        return "Non calculee"
+        return "Non calculée"
 
 
 def _service_badge(value: str) -> str:
@@ -149,18 +149,18 @@ def _trip_card(row: pd.Series) -> str:
       <div class="trip-card__line">
         <div>
           <div class="trip-card__time">{_format_time(row.get('heure_depart'))}</div>
-          <div class="trip-card__station">{_safe_text(row.get('gare_depart'), 'Depart')}</div>
+          <div class="trip-card__station">{_safe_text(row.get('gare_depart'), 'Départ')}</div>
         </div>
         <div class="trip-card__duration">{_duration_from_row(row)}</div>
         <div style="text-align:right;">
           <div class="trip-card__time">{_format_time(row.get('heure_arrivee'))}</div>
-          <div class="trip-card__station">{_safe_text(row.get('gare_arrivee'), 'Arrivee')}</div>
+          <div class="trip-card__station">{_safe_text(row.get('gare_arrivee'), 'Arrivée')}</div>
         </div>
       </div>
       <div class="trip-card__footer trip-card__footer--with-cta">
         <div class="trip-card__footer-left">
           <span>Ligne</span>
-          <strong>{_safe_text(row.get('nom_ligne'), 'Non renseignee')}</strong>
+          <strong>{_safe_text(row.get('nom_ligne'), 'Non renseignée')}</strong>
           {distance_html}
         </div>
       </div>
@@ -224,7 +224,7 @@ def _route_map(stops: list) -> go.Figure:
                 lat=lats,
                 lon=lons,
                 mode="lines",
-                line=dict(width=4, color="rgba(234,125,87,0.85)"),
+                line=dict(width=4, color="rgba(246,178,74,0.9)"),
                 hoverinfo="skip",
                 showlegend=False,
             )
@@ -238,15 +238,15 @@ def _route_map(stops: list) -> go.Figure:
         if idx == 0:
             endpoint_lats.append(float(stop["latitude"]))
             endpoint_lons.append(float(stop["longitude"]))
-            endpoint_text.append(f"Depart · {label}")
+            endpoint_text.append(f"Départ · {label}")
         elif idx == last_idx:
             endpoint_lats.append(float(stop["latitude"]))
             endpoint_lons.append(float(stop["longitude"]))
-            endpoint_text.append(f"Arrivee · {label}")
+            endpoint_text.append(f"Arrivée ·{label}")
         else:
             intermediate_lats.append(float(stop["latitude"]))
             intermediate_lons.append(float(stop["longitude"]))
-            intermediate_text.append(f"Arret · {label}")
+            intermediate_text.append(f"Arrêt ·{label}")
 
     if intermediate_lats:
         fig.add_trace(
@@ -254,7 +254,7 @@ def _route_map(stops: list) -> go.Figure:
                 lat=intermediate_lats,
                 lon=intermediate_lons,
                 mode="markers",
-                marker=dict(size=10, color="#ea7d57"),
+                marker=dict(size=10, color="#f6b24a"),
                 text=intermediate_text,
                 hovertemplate="<b>%{text}</b><extra></extra>",
                 showlegend=False,
@@ -267,7 +267,7 @@ def _route_map(stops: list) -> go.Figure:
                 lat=endpoint_lats,
                 lon=endpoint_lons,
                 mode="markers",
-                marker=dict(size=15, color="#174936"),
+                marker=dict(size=15, color="#0e7a50"),
                 text=endpoint_text,
                 hovertemplate="<b>%{text}</b><extra></extra>",
                 showlegend=False,
@@ -301,7 +301,7 @@ def _route_map(stops: list) -> go.Figure:
     return fig
 
 
-@st.dialog("Detail du trajet", width="large")
+@st.dialog("Détail du trajet", width="large")
 def _trip_dialog(trip: dict, depart: dict, arrivee: dict) -> None:
     row = pd.Series(trip)
     trajet_id = _safe_text(row.get("trajet_id"), "")
@@ -351,32 +351,32 @@ def _trip_dialog(trip: dict, depart: dict, arrivee: dict) -> None:
 """)
 
     nb_arrets = max(len(stops) - 2, 0)
-    arrets_label = f"{nb_arrets} arret{'s' if nb_arrets > 1 else ''} intermediaire{'s' if nb_arrets > 1 else ''}" if nb_arrets > 0 else "Sans arret intermediaire"
+    arrets_label = f"{nb_arrets} arrêt{'s' if nb_arrets > 1 else ''} intermédiaire{'s' if nb_arrets > 1 else ''}" if nb_arrets > 0 else "Sans arrêt intermédiaire"
 
     st.html(f"""
 <div class="dialog-route">
   <div class="dialog-route__col">
-    <div class="dialog-route__meta">Depart</div>
+    <div class="dialog-route__meta">Départ</div>
     <div class="dialog-route__time">{_format_time(row.get('heure_depart'))}</div>
-    <div class="dialog-route__station">{_safe_text(row.get('gare_depart'), 'Depart')}</div>
+    <div class="dialog-route__station">{_safe_text(row.get('gare_depart'), 'Départ')}</div>
     <div class="dialog-route__country">{_safe_text(depart.get('iso_pays'), 'Europe')}</div>
   </div>
   <div class="dialog-route__col dialog-route__col--center">
     {lucide("train-front", size=28, color="#ea7d57", stroke_width=1.9)}
     <div class="dialog-route__duration">{_duration_from_row(row)}</div>
-    <div class="dialog-route__line">{_safe_text(row.get('nom_ligne'), 'Ligne non renseignee')}</div>
+    <div class="dialog-route__line">{_safe_text(row.get('nom_ligne'), 'Ligne non renseignée')}</div>
     <div class="dialog-route__line">{arrets_label}</div>
   </div>
   <div class="dialog-route__col dialog-route__col--right">
-    <div class="dialog-route__meta">Arrivee</div>
+    <div class="dialog-route__meta">Arrivée</div>
     <div class="dialog-route__time">{_format_time(row.get('heure_arrivee'))}</div>
-    <div class="dialog-route__station">{_safe_text(row.get('gare_arrivee'), 'Arrivee')}</div>
+    <div class="dialog-route__station">{_safe_text(row.get('gare_arrivee'), 'Arrivée')}</div>
     <div class="dialog-route__country">{_safe_text(arrivee.get('iso_pays'), 'Europe')}</div>
   </div>
 </div>
 """)
 
-    st.html('<div class="dialog-section-title">Itineraire sur la carte</div>')
+    st.html('<div class="dialog-section-title">Itinéraire sur la carte</div>')
     st.plotly_chart(
         _route_map(stops),
         width="stretch",
@@ -390,13 +390,13 @@ def _trip_dialog(trip: dict, depart: dict, arrivee: dict) -> None:
     for idx, stop in enumerate(stops):
         if idx == 0:
             kind = "depart"
-            kind_label = "Depart"
+            kind_label = "Départ"
         elif idx == last_idx:
             kind = "arrivee"
-            kind_label = "Arrivee"
+            kind_label = "Arrivée"
         else:
             kind = "stop"
-            kind_label = "Arret"
+            kind_label = "Arrêt"
 
         lat = stop.get("latitude")
         lon = stop.get("longitude")
@@ -426,20 +426,20 @@ def _trip_dialog(trip: dict, depart: dict, arrivee: dict) -> None:
     st.html('<ol class="stop-list">' + "".join(rows_html) + "</ol>")
 
     st.html('<div class="dialog-section-title">Informations service</div>')
-    distance_label = _format_distance(row.get("distance")) or "Non renseignee"
+    distance_label = _format_distance(row.get("distance")) or "Non renseignée"
     st.html(f"""
 <div class="city-grid">
   <div class="city-block">
-    <div class="city-block__meta">Operateur</div>
+    <div class="city-block__meta">Opérateur</div>
     <div class="city-block__name">{_safe_text(row.get('code_operateur'), 'ATC')}</div>
     <div class="city-block__row"><span>Type service</span><strong>{_service_badge(_safe_text(row.get('type_service'), 'Service'))}</strong></div>
-    <div class="city-block__row"><span>Trajet ID</span><strong>{_safe_text(row.get('trajet_id'), 'Non renseigne')}</strong></div>
+    <div class="city-block__row"><span>Trajet ID</span><strong>{_safe_text(row.get('trajet_id'), 'Non renseigné')}</strong></div>
   </div>
   <div class="city-block">
     <div class="city-block__meta">Ligne</div>
-    <div class="city-block__name">{_safe_text(row.get('nom_ligne'), 'Non renseignee')}</div>
+    <div class="city-block__name">{_safe_text(row.get('nom_ligne'), 'Non renseignée')}</div>
     <div class="city-block__row"><span>Distance</span><strong>{distance_label}</strong></div>
-    <div class="city-block__row"><span>Duree</span><strong>{_duration_from_row(row)}</strong></div>
+    <div class="city-block__row"><span>Durée</span><strong>{_duration_from_row(row)}</strong></div>
   </div>
 </div>
 """)
@@ -484,15 +484,15 @@ def render() -> None:
     with st.container():
         col_a, col_b = st.columns(2, gap="medium")
         with col_a:
-            depart = st.selectbox("Gare de depart", ["Toutes les gares"] + gare_options, index=0)
+            depart = st.selectbox("Gare de départ", ["Toutes les gares"] + gare_options, index=0)
         with col_b:
-            arrivee = st.selectbox("Gare d'arrivee", ["Toutes les gares"] + gare_options, index=0)
+            arrivee = st.selectbox("Gare d'arrivée", ["Toutes les gares"] + gare_options, index=0)
 
         col_c, col_d, col_e = st.columns(3, gap="medium")
         with col_c:
             type_filter = st.selectbox("Type de service", ["Tous les types"] + type_options, index=0)
         with col_d:
-            operator_filter = st.selectbox("Operateur", ["Tous les operateurs"] + operator_options, index=0)
+            operator_filter = st.selectbox("Opérateur", ["Tous les opérateurs"] + operator_options, index=0)
         with col_e:
             line_filter = st.selectbox("Ligne", ["Toutes les lignes"] + line_options, index=0)
 
@@ -504,7 +504,7 @@ def render() -> None:
         df = df[df["type_service"] == type_filter]
     if line_filter != "Toutes les lignes":
         df = df[df["nom_ligne"] == line_filter]
-    if operator_filter != "Tous les operateurs":
+    if operator_filter != "Tous les opérateurs":
         if not operateurs_df.empty and {"operateur", "code_operateur"}.issubset(operateurs_df.columns):
             selected_codes = operateurs_df.loc[
                 operateurs_df["operateur"] == operator_filter, "code_operateur"
@@ -530,7 +530,7 @@ def render() -> None:
     st.html(
         f'<div class="section-title" style="margin-top:1rem;">'
         f'<div class="section-title__label">Dessertes visibles</div>'
-        f'<div class="section-title__meta">{_fmt_int(visible)} sur {_fmt_int(total_results)} resultats</div>'
+        f'<div class="section-title__meta">{_fmt_int(visible)} sur {_fmt_int(total_results)} résultats</div>'
         f'</div>'
     )
 
@@ -542,7 +542,7 @@ def render() -> None:
             with st.container(key=f"tripcard_{index}"):
                 st.html(_trip_card(pd.Series(row_dict)))
                 trajet_id = _safe_text(row_dict.get("trajet_id"), f"row-{index}")
-                if st.button("Voir le detail →", key=f"detail_{trajet_id}_{index}"):
+                if st.button("Voir le détail →", key=f"detail_{trajet_id}_{index}"):
                     depart_info = _gare_lookup(df_gares, row_dict.get("gare_depart"))
                     arrivee_info = _gare_lookup(df_gares, row_dict.get("gare_arrivee"))
                     _trip_dialog(row_dict, depart_info, arrivee_info)

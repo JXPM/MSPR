@@ -5,11 +5,11 @@ from __future__ import annotations
 import plotly.graph_objects as go
 
 
-GREEN = "#174936"
-NAVY = "#1d2a53"
-ACCENT = "#ea7d57"
-CREAM = "#f6f1e8"
-TEXT = "#143d35"
+GREEN = "#0e7a50"
+NAVY = "#2d4a8a"
+ACCENT = "#c2683a"
+CREAM = "#ffffff"
+TEXT = "#0f1b2d"
 
 
 def railway_map(df_gares, df_segments=None, show_segments: bool = False, height: int = 460):
@@ -52,7 +52,7 @@ def railway_map(df_gares, df_segments=None, show_segments: bool = False, height:
                 lat=df_gares["latitude"],
                 lon=df_gares["longitude"],
                 mode="markers",
-                marker=dict(size=18, color="rgba(234,125,87,0.20)"),
+                marker=dict(size=18, color="rgba(14,122,80,0.14)"),
                 hoverinfo="skip",
                 showlegend=False,
             )
@@ -62,7 +62,7 @@ def railway_map(df_gares, df_segments=None, show_segments: bool = False, height:
                 lat=df_gares["latitude"],
                 lon=df_gares["longitude"],
                 mode="markers",
-                marker=dict(size=7, color=GREEN, opacity=0.96),
+                marker=dict(size=6, color=GREEN, opacity=0.95),
                 text=df_gares["nom_gare"] if "nom_gare" in df_gares.columns else None,
                 hovertemplate="<b>%{text}</b><extra></extra>",
                 showlegend=False,
