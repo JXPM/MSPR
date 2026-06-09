@@ -95,22 +95,22 @@ def render() -> None:
     has_emissions = bool(emissions) and (train_kg > 0 or avion_kg > 0)
     saved_kg_display = f"{saved_kg:,} kg".replace(",", " ") if has_emissions else "—"
     saved_total_display = f"{saved_total:,} kg".replace(",", " ") if has_emissions else "—"
-    saved_kg_hint = "Train contre scenario avion" if has_emissions else "Donnees emissions indisponibles"
-    saved_total_hint = "Projection sur l'ensemble des trajets" if has_emissions else "Donnees emissions indisponibles"
+    saved_kg_hint = "Train contre scénario avion" if has_emissions else "Données émissions indisponibles"
+    saved_total_hint = "Projection sur l'ensemble des trajets" if has_emissions else "Données émissions indisponibles"
 
     st.html(f"""
 <div class="kpi-row">
-  {_kpi("route", "#174936", "Trajets catalogues", f"{stats['trajets']:,}".replace(",", " "), "Dessertes suivies dans l'entrepot")}
-  {_kpi("landmark", "#1d2a53", "Gares documentees", f"{stats['gares']:,}".replace(",", " "), "Noms, pays et geolocalisation")}
+  {_kpi("route", "#174936", "Trajets catalogués", f"{stats['trajets']:,}".replace(",", " "), "Dessertes suivies dans l'entrepôt")}
+  {_kpi("landmark", "#1d2a53", "Gares documentées", f"{stats['gares']:,}".replace(",", " "), "Noms, pays et géolocalisation")}
   {_kpi("git-fork", "#245845", "Lignes actives", f"{stats['lignes']:,}".replace(",", " "), "Jour, nuit et longue distance")}
-  {_kpi("globe", "#a15e3f", "Pays couverts", f"{stats['pays']:,}".replace(",", " "), "Empreinte reseau europeenne")}
+  {_kpi("globe", "#a15e3f", "Pays couverts", f"{stats['pays']:,}".replace(",", " "), "Empreinte réseau européenne")}
 </div>
 """)
 
     col_map, col_stats = st.columns([1.45, 1], gap="large")
     with col_map:
         st.markdown(
-            '<div class="section-title"><div class="section-title__label">Reseau ferroviaire</div><div class="section-title__meta">Gares geolocalisees</div></div>',
+            '<div class="section-title"><div class="section-title__label">Réseau ferroviaire</div><div class="section-title__meta">Gares géolocalisées</div></div>',
             unsafe_allow_html=True,
         )
         map_df = gares.dropna(subset=["latitude", "longitude"]) if {"latitude", "longitude"}.issubset(gares.columns) else pd.DataFrame()
@@ -128,10 +128,10 @@ def render() -> None:
             unsafe_allow_html=True,
         )
         st.html(
-            _metric_card("Lignes de jour", f"{n_jour:,}".replace(",", " "), "Mobilite diurne du reseau")
-            + _metric_card("Lignes de nuit", f"{n_nuit:,}".replace(",", " "), "Connectivite longue distance")
-            + _metric_card("CO2 economise / trajet", saved_kg_display, saved_kg_hint)
-            + _metric_card("CO2 total evite", saved_total_display, saved_total_hint)
+            _metric_card("Lignes de jour", f"{n_jour:,}".replace(",", " "), "Mobilité diurne du réseau")
+            + _metric_card("Lignes de nuit", f"{n_nuit:,}".replace(",", " "), "Connectivité longue distance")
+            + _metric_card("CO₂ économisé / trajet", saved_kg_display, saved_kg_hint)
+            + _metric_card("CO₂ total évité", saved_total_display, saved_total_hint)
         )
 
     col_a, col_b = st.columns([1, 1], gap="large")
@@ -148,7 +148,7 @@ def render() -> None:
 
     with col_b:
         st.markdown(
-            '<div class="section-title"><div class="section-title__label">Empreinte geographique</div><div class="section-title__meta">Top pays par gares</div></div>',
+            '<div class="section-title"><div class="section-title__label">Empreinte géographique</div><div class="section-title__meta">Top pays par gares</div></div>',
             unsafe_allow_html=True,
         )
         if "iso_pays" in gares.columns:
@@ -164,7 +164,7 @@ def render() -> None:
     col_c, col_d = st.columns([1.2, 1], gap="large")
     with col_c:
         st.markdown(
-            '<div class="section-title"><div class="section-title__label">Operateurs</div><div class="section-title__meta">Volumes recenses</div></div>',
+            '<div class="section-title"><div class="section-title__label">Opérateurs</div><div class="section-title__meta">Volumes recensés</div></div>',
             unsafe_allow_html=True,
         )
         st.plotly_chart(
@@ -175,7 +175,7 @@ def render() -> None:
 
     with col_d:
         st.markdown(
-            '<div class="section-title"><div class="section-title__label">Impact CO2</div><div class="section-title__meta">Moyenne par trajet</div></div>',
+            '<div class="section-title"><div class="section-title__label">Impact CO₂</div><div class="section-title__meta">Moyenne par trajet</div></div>',
             unsafe_allow_html=True,
         )
         st.plotly_chart(
@@ -185,7 +185,7 @@ def render() -> None:
         )
 
     st.markdown(
-        '<div class="section-title" style="margin-top:0.6rem;"><div class="section-title__label">Economies par operateur</div><div class="section-title__meta">Scenario train versus tout avion</div></div>',
+        '<div class="section-title" style="margin-top:0.6rem;"><div class="section-title__label">Économies par opérateur</div><div class="section-title__meta">Scénario train contre tout avion</div></div>',
         unsafe_allow_html=True,
     )
     if operateurs:
@@ -197,13 +197,13 @@ def render() -> None:
                 y=ops_df["saved"],
                 marker=dict(
                     color=ops_df["saved"],
-                    colorscale=[[0, "#efdccf"], [0.45, "#d99d76"], [1, "#174936"]],
+                    colorscale=[[0, "#dbe7e0"], [0.45, "#5aa17e"], [1, "#0e7a50"]],
                     showscale=False,
-                    line=dict(color="#d7c8b4", width=1),
+                    line=dict(color="rgba(15,27,45,0.05)", width=1),
                 ),
                 text=[f"{value/1000:.0f} t" for value in ops_df["saved"]],
                 textposition="outside",
-                hovertemplate="<b>%{x}</b><br>%{y:,.0f} kg CO2 evites<extra></extra>",
+                hovertemplate="<b>%{x}</b><br>%{y:,.0f} kg CO₂ évités<extra></extra>",
             )
         )
         fig.update_layout(
@@ -211,10 +211,10 @@ def render() -> None:
             plot_bgcolor="rgba(0,0,0,0)",
             margin=dict(l=10, r=10, t=10, b=70),
             height=340,
-            font=dict(family="Inter, sans-serif", color="#6d877f"),
-            xaxis=dict(showgrid=False, tickangle=-22, color="#143d35"),
-            yaxis=dict(showgrid=True, gridcolor="#e5d8c8", showticklabels=False, zeroline=False),
+            font=dict(family="Inter, sans-serif", color="#5a6b7e"),
+            xaxis=dict(showgrid=False, tickangle=-22, color="#0f1b2d"),
+            yaxis=dict(showgrid=True, gridcolor="rgba(15,27,45,0.08)", showticklabels=False, zeroline=False),
         )
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     else:
-        st.info("La repartition par operateur est indisponible.")
+        st.info("La répartition par opérateur est indisponible.")

@@ -33,15 +33,15 @@ def _autorefresh(seconds: int) -> None:
 
 def _kpi(label: str, value: str, hint: str = "", tone: str = "default") -> str:
     bg = {
-        "default": "rgba(255,255,255,0.82)",
-        "success": "linear-gradient(135deg, #174936 0%, #12372d 100%)",
-        "warning": "linear-gradient(135deg, #b47343 0%, #91562c 100%)",
-        "danger": "linear-gradient(135deg, #8d4040 0%, #6a2d2d 100%)",
+        "default": "#ffffff",
+        "success": "linear-gradient(135deg, #0f8a59 0%, #0b6442 100%)",
+        "warning": "linear-gradient(135deg, #c8881f 0%, #9a6510 100%)",
+        "danger": "linear-gradient(135deg, #c0392b 0%, #992114 100%)",
     }[tone]
-    color = "#f7efe4" if tone != "default" else "#143d35"
-    sub = "rgba(247,239,228,0.72)" if tone != "default" else "#6d877f"
-    label_color = "rgba(247,239,228,0.72)" if tone != "default" else "#6d877f"
-    border = "transparent" if tone != "default" else "#dfd3c2"
+    color = "#eafff1" if tone != "default" else "#0f1b2d"
+    sub = "rgba(233,241,236,0.62)" if tone != "default" else "#5a6b7e"
+    label_color = "rgba(233,241,236,0.62)" if tone != "default" else "#5a6b7e"
+    border = "rgba(14,122,80,0.30)" if tone == "success" else ("#e6e9ef" if tone == "default" else "transparent")
     return f"""
     <div class="kpi-card" style="background:{bg}; color:{color}; border-color:{border};">
       <div class="kpi-label" style="color:{label_color};">{label}</div>
@@ -88,12 +88,12 @@ def render() -> None:
     rolling = round(sum(1 for sample in history if sample["ok"]) / max(len(history), 1) * 100, 1)
 
     if availability == 100:
-        title = "Operationnel"
-        subtitle = f"Derniere sonde : {now:%H:%M:%S} — {health_probe['latency_ms']:.0f} ms"
+        title = "Opérationnel"
+        subtitle = f"Dernière sonde : {now:%H:%M:%S} — {health_probe['latency_ms']:.0f} ms"
         tone = "success"
     elif availability >= 50:
-        title = "Degradation partielle"
-        subtitle = f"{errors} endpoint(s) en echec au dernier cycle"
+        title = "Dégradation partielle"
+        subtitle = f"{errors} endpoint(s) en échec au dernier cycle"
         tone = "warning"
     else:
         title = "Incident en cours"
@@ -110,16 +110,16 @@ def render() -> None:
 
     st.html(f"""
 <div class="kpi-row">
-  {_kpi("Disponibilite", f"{availability}%", f"{ok_count}/{total} endpoints OK", tone)}
+  {_kpi("Disponibilité", f"{availability}%", f"{ok_count}/{total} endpoints OK", tone)}
   {_kpi("Latence moyenne", f"{average_latency} ms", "Moyenne des endpoints sains")}
-  {_kpi("Erreurs", str(errors), "Sur la fenetre du dernier sondage")}
-  {_kpi("Sondes collectees", str(len(history)), "Historique glissant sur 60 points")}
+  {_kpi("Erreurs", str(errors), "Sur la fenêtre du dernier sondage")}
+  {_kpi("Sondes collectées", str(len(history)), "Historique glissant sur 60 points")}
 </div>
 """)
 
     col_a, col_b = st.columns([1, 1], gap="large")
     with col_a:
-        st.html('<div class="section-title"><div class="section-title__label">Temps de reponse</div><div class="section-title__meta">Latence /health</div></div>')
+        st.html('<div class="section-title"><div class="section-title__label">Temps de réponse</div><div class="section-title__meta">Latence /health</div></div>')
         st.plotly_chart(
             latency_chart(history),
             width="stretch",
@@ -127,30 +127,30 @@ def render() -> None:
         )
 
     with col_b:
-        st.html('<div class="section-title"><div class="section-title__label">Historique</div><div class="section-title__meta">Disponibilite recente</div></div>')
+        st.html('<div class="section-title"><div class="section-title__label">Historique</div><div class="section-title__meta">Disponibilité récente</div></div>')
         bars = []
         recent = history[-40:] if history else []
         for sample in recent:
-            color = "#174936" if sample["ok"] else "#b94d4d"
+            color = "#0e7a50" if sample["ok"] else "#c0392b"
             bars.append(
                 f'<div style="width:12px;height:34px;border-radius:6px;background:{color};opacity:0.92;"></div>'
             )
         if not bars:
-            bars = ['<div style="color:#6d877f;">Aucune sonde disponible.</div>']
+            bars = ['<div style="color:#5a6b7e;">Aucune sonde disponible.</div>']
         st.html(f"""
 <div class="panel">
   <div style="display:flex; gap:6px; align-items:flex-end; min-height:58px;">{''.join(bars)}</div>
-  <div style="display:flex; justify-content:space-between; margin-top:1rem; color:#6d877f;">
+  <div style="display:flex; justify-content:space-between; margin-top:1rem; color:#5a6b7e;">
     <span>Plus anciennes</span>
-    <span>Plus recentes →</span>
+    <span>Plus récentes →</span>
   </div>
-  <div style="margin-top:1rem; color:#6d877f;">
-    Disponibilite glissante : <strong style="color:#143d35;">{rolling}%</strong>
+  <div style="margin-top:1rem; color:#5a6b7e;">
+    Disponibilité glissante : <strong style="color:#0f1b2d;">{rolling}%</strong>
   </div>
 </div>
 """)
 
-    st.html('<div class="section-title"><div class="section-title__label">Points de contact</div><div class="section-title__meta">Verification automatique toutes les 10 secondes</div></div>')
+    st.html('<div class="section-title"><div class="section-title__label">Points de contact</div><div class="section-title__meta">Vérification automatique toutes les 10 secondes</div></div>')
 
     rows = []
     for probe in probes:
@@ -159,19 +159,19 @@ def render() -> None:
         rows.append(
             f"""<div class="endpoint-row">
   <div>
-    <div style="font-weight:700;color:#143d35;">{probe['endpoint'].replace('/stats/', '').strip('/') or 'health'}</div>
+    <div style="font-weight:700;color:#0f1b2d;">{probe['endpoint'].replace('/stats/', '').strip('/') or 'health'}</div>
     <div class="endpoint-row__path">GET {probe['endpoint']}</div>
   </div>
   <div>{_status_pill(probe)}</div>
-  <div style="justify-self:end; color:#143d35; font-family:'IBM Plex Mono', monospace;">{latency}</div>
-  <div style="color:#6d877f;">{error}</div>
+  <div style="justify-self:end; color:#0f1b2d; font-family:'IBM Plex Mono', monospace;">{latency}</div>
+  <div style="color:#5a6b7e;">{error}</div>
 </div>
 """
         )
 
     st.html(f"""
 <div class="panel">
-  <div style="margin-bottom:0.85rem; color:#6d877f;">Base surveillee : <strong style="color:#143d35;">{API_URL}</strong></div>
+  <div style="margin-bottom:0.85rem; color:#5a6b7e;">Base surveillée : <strong style="color:#0f1b2d;">{API_URL}</strong></div>
   {''.join(rows)}
 </div>
 """)

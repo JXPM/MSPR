@@ -6,16 +6,16 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-GREEN = "#174936"
-GREEN_2 = "#255845"
-NAVY = "#1d2a53"
-ACCENT = "#ea7d57"
-TEXT = "#143d35"
-MUTED = "#6d877f"
-GRID = "#e5d8c8"
-CREAM = "#f6f1e8"
-OK = "#1f6e4e"
-DANGER = "#b94d4d"
+GREEN = "#0e7a50"
+GREEN_2 = "#0b6442"
+NAVY = "#2d4a8a"
+ACCENT = "#c2683a"
+TEXT = "#0f1b2d"
+MUTED = "#5a6b7e"
+GRID = "rgba(15,27,45,0.08)"
+CREAM = "#ffffff"
+OK = "#0e7a50"
+DANGER = "#c0392b"
 
 FONT_BODY = "Inter, sans-serif"
 FONT_SERIF = "Cormorant Garamond, serif"
@@ -25,7 +25,7 @@ FONT_MONO = "IBM Plex Mono, monospace"
 def _base_layout(height: int = 300, **overrides) -> dict:
     layout = dict(
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(255,255,255,0.18)",
+        plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=FONT_BODY, color=MUTED, size=12),
         margin=dict(l=10, r=10, t=12, b=12),
         height=height,
@@ -82,11 +82,11 @@ def co2_chart(data: dict) -> go.Figure:
         go.Bar(
             x=["Train", "Avion"],
             y=[train, avion],
-            marker=dict(color=[GREEN, ACCENT], line=dict(color="#d7c8b4", width=1.2)),
+            marker=dict(color=[GREEN, ACCENT], line=dict(color="rgba(15,27,45,0.06)", width=1.2)),
             text=[f"{train:,} kg", f"{avion:,} kg"],
             textposition="outside",
             textfont=dict(family=FONT_MONO, color=TEXT, size=12),
-            hovertemplate="<b>%{x}</b><br>%{y:,} kg CO2<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>%{y:,} kg CO₂<extra></extra>",
         )
     )
     fig.update_layout(
@@ -121,9 +121,9 @@ def operateurs_chart(data: list) -> go.Figure:
             orientation="h",
             marker=dict(
                 color=df["trajets"],
-                colorscale=[[0, "#e8ddcf"], [0.45, "#9bb2aa"], [1, GREEN]],
+                colorscale=[[0, "#dbe7e0"], [0.45, "#5aa17e"], [1, GREEN]],
                 showscale=False,
-                line=dict(color="#d7c8b4", width=1),
+                line=dict(color="rgba(15,27,45,0.05)", width=1),
             ),
             text=[f"{value:,}" for value in df["trajets"]],
             textposition="outside",
@@ -146,9 +146,9 @@ def pays_bar_chart(counts: pd.Series) -> go.Figure:
             y=counts.values,
             marker=dict(
                 color=counts.values,
-                colorscale=[[0, "#efe3d5"], [0.5, "#dba179"], [1, NAVY]],
+                colorscale=[[0, "#dde3ef"], [0.5, "#7d97c8"], [1, NAVY]],
                 showscale=False,
-                line=dict(color="#d7c8b4", width=1),
+                line=dict(color="rgba(15,27,45,0.05)", width=1),
             ),
             hovertemplate="<b>%{x}</b><br>%{y:,} gares<extra></extra>",
         )
@@ -179,7 +179,7 @@ def latency_chart(history: list[dict]) -> go.Figure:
             mode="lines",
             line=dict(color=GREEN, width=3, shape="spline", smoothing=0.45),
             fill="tozeroy",
-            fillcolor="rgba(23,73,54,0.08)",
+            fillcolor="rgba(14,122,80,0.08)",
             hoverinfo="skip",
             showlegend=False,
         )
