@@ -184,3 +184,87 @@ SUPERVISED_ENDPOINTS = [
     "/stats/operateurs",
     "/stats/trajets/type",
 ]
+
+
+def predict_emissions(
+    distance_km: float,
+    operateur: str,
+    type_service: str,
+    duree_trajet_min: float,
+) -> dict:
+    """Appelle POST /predict/emissions et retourne le dictionnaire de reponse.
+
+    Retourne un dictionnaire vide en cas d'erreur reseau ou serveur.
+    """
+    try:
+        response = requests.post(
+            f"{API_URL}/predict/emissions",
+            json={
+                "distance_km": distance_km,
+                "operateur": operateur,
+                "type_service": type_service,
+                "duree_trajet_min": duree_trajet_min,
+            },
+            timeout=15,
+        )
+        if response.status_code == 200:
+            return response.json()
+        return {}
+    except Exception:
+        return {}
+
+
+def predict_cluster(
+    distance_km: float,
+    empreinte_train_kg: float,
+    empreinte_avion_kg: float,
+    ratio_co2: float,
+) -> dict:
+    """Appelle POST /predict/cluster et retourne le dictionnaire de reponse.
+
+    Retourne un dictionnaire vide en cas d'erreur reseau ou serveur.
+    """
+    try:
+        response = requests.post(
+            f"{API_URL}/predict/cluster",
+            json={
+                "distance_km": distance_km,
+                "empreinte_train_kg": empreinte_train_kg,
+                "empreinte_avion_kg": empreinte_avion_kg,
+                "ratio_co2": ratio_co2,
+            },
+            timeout=15,
+        )
+        if response.status_code == 200:
+            return response.json()
+        return {}
+    except Exception:
+        return {}
+
+
+def predict_full(
+    distance_km: float,
+    operateur: str,
+    type_service: str,
+    duree_trajet_min: float,
+) -> dict:
+    """Appelle POST /predict/full et retourne la prediction complete (emissions + cluster).
+
+    Retourne un dictionnaire vide en cas d'erreur reseau ou serveur.
+    """
+    try:
+        response = requests.post(
+            f"{API_URL}/predict/full",
+            json={
+                "distance_km": distance_km,
+                "operateur": operateur,
+                "type_service": type_service,
+                "duree_trajet_min": duree_trajet_min,
+            },
+            timeout=15,
+        )
+        if response.status_code == 200:
+            return response.json()
+        return {}
+    except Exception:
+        return {}

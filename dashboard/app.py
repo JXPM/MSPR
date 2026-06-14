@@ -943,6 +943,7 @@ PAGES = [
     ("Trajets", ":material/route:"),
     ("Observatoire", ":material/insights:"),
     ("Supervision", ":material/monitor_heart:"),
+    ("Simulateur", ":material/bolt:"),
 ]
 
 if "page" not in st.session_state:
@@ -950,7 +951,7 @@ if "page" not in st.session_state:
 
 
 def render_shell_header() -> None:
-    cols = st.columns([2.2, 1, 1, 1, 0.4], gap="small")
+    cols = st.columns([2, 1, 1, 1, 1], gap="small")
     with cols[0]:
         train_icon = lucide("train-front", size=22, color="#f7efe4", stroke_width=1.9)
         st.html(f"""
@@ -1005,6 +1006,12 @@ ROUTES = {
         "Observabilite · 03",
         "Supervision",
         "Surveillance en temps reel de l'API ObRail. Une sonde /health est emise toutes les 10 secondes pour suivre la disponibilite et la latence.",
+    ),
+    "Simulateur": (
+        "_pages.simulateur",
+        "Machine Learning · 04",
+        "Simulateur CO2",
+        "Estimez l'empreinte carbone d'un trajet ferroviaire et identifiez son potentiel de substitution avion/train grace aux modeles XGBoost et KMeans entraines sur 400 liaisons europeennes.",
     ),
 }
 
