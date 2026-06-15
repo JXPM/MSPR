@@ -29,12 +29,19 @@ def load_models():
     model_clustering  = joblib.load(os.path.join(MODELS_DIR, 'model_clustering.joblib'))
     target_encoding   = pd.read_csv(os.path.join(PROCESSED_DIR, 'target_encoding.csv'))
 
+    # Pre-calcul de la table d'encodage et de la moyenne globale : faits une
+    # seule fois au chargement plutot qu'a chaque appel de predict_emissions.
+    encoding_map    = target_encoding.set_index('operateur')['target_encoding']
+    moyenne_globale = float(encoding_map.mean())
+
     return {
         'scaler_regression' : scaler_regression,
         'model_regression'  : model_regression,
         'scaler_clustering' : scaler_clustering,
         'model_clustering'  : model_clustering,
-        'target_encoding'   : target_encoding
+        'target_encoding'   : target_encoding,
+        'encoding_map'      : encoding_map,
+        'moyenne_globale'   : moyenne_globale,
     }
 
 
@@ -51,8 +58,12 @@ def predict_emissions(distance_km, operateur, type_service, duree_trajet_min, mo
     Returns:
         float : empreinte CO2 prédite en kg
     """
-    encoding_map    = models['target_encoding'].set_index('operateur')['target_encoding']
-    moyenne_globale = encoding_map.mean()
+    # Reutilise la table pre-calculee si presente (cf. load_models), sinon
+    # retombe sur l'ancien comportement pour rester retro-compatible.
+    encoding_map    = models.get('encoding_map')
+    if encoding_map is None:
+        encoding_map = models['target_encoding'].set_index('operateur')['target_encoding']
+    moyenne_globale = models.get('moyenne_globale', float(encoding_map.mean()))
     operateur_enc   = encoding_map.get(operateur, moyenne_globale)
     type_enc        = 0 if type_service == 'JOUR' else 1
 

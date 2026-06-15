@@ -36,9 +36,26 @@ def _load_ml_models() -> None:
     """
     global _MODELS, _predict_emissions_fn, _predict_cluster_fn, _LOAD_ERROR
 
-    project_root = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
-    )
+    # Recherche du repertoire racine contenant le package `ml/` en remontant
+    # l'arborescence depuis ce fichier. Robuste quel que soit l'agencement :
+    # - en local : <repo>/backend/app/routes -> racine = <repo>
+    # - en conteneur : /app/app/routes avec ml monte sur /app -> racine = /app
+    # Un simple comptage de ".." ne fonctionne pas car la profondeur differe.
+    here = os.path.dirname(os.path.abspath(__file__))
+    project_root = None
+    current = here
+    while True:
+        if os.path.isfile(os.path.join(current, "ml", "api", "predict.py")):
+            project_root = current
+            break
+        parent = os.path.dirname(current)
+        if parent == current:  # racine du systeme de fichiers atteinte
+            break
+        current = parent
+
+    if project_root is None:
+        _LOAD_ERROR = "package ml/ introuvable en remontant depuis " + here
+        return
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
@@ -121,8 +138,9 @@ def predict_full(request: PredictFullRequest) -> PredictFullResponse:
             request.duree_trajet_min,
             models,
         )
+        # distance_km est valide gt=0 (cf. PredictFullRequest), donc avion > 0
         empreinte_avion = request.distance_km * 0.158
-        ratio = empreinte / empreinte_avion if empreinte_avion > 0 else 0.0
+        ratio = empreinte / empreinte_avion
         cluster_id, label = _predict_cluster_fn(
             request.distance_km,
             empreinte,

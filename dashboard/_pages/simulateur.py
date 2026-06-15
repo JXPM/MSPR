@@ -21,8 +21,12 @@ ORANGE = "#c95f37"
 RED = "#8d4040"
 NAVY = "#1d2a53"
 
-# Ratio CO2 train/avion moyen par cluster (issu des profils KMeans du training notebook)
-_CLUSTER_RATIO_CO2 = {0: 0.03, 1: 0.14, 2: 0.11}
+# Ratio CO2 train/avion moyen par cluster (profils KMeans du training notebook).
+# Ordonne de facon monotone avec la distance / la severite des labels :
+# cluster 0 (fort potentiel, trajets courts) = meilleur ratio (plus faible),
+# cluster 2 (potentiel limite, trajets longs) = ratio le plus eleve.
+# => l'economie CO2 affichee decroit bien de 0 vers 2 (97% > 89% > 86%).
+_CLUSTER_RATIO_CO2 = {0: 0.03, 1: 0.11, 2: 0.14}
 _CLUSTER_LABELS = {
     0: "Fort potentiel",
     1: "Potentiel modere",
@@ -35,11 +39,15 @@ _CLUSTER_NAMES = {
     2: "Potentiel limite (> 1100 km)",
 }
 
+# Tranches de distance affichees sur la carte. Ce sont des ESTIMATIONS par
+# distance (Haversine), volontairement distinctes du cluster KMeans renvoye par
+# le modele dans la carte de resultat : on evite donc le terme "Cluster N" ici
+# pour ne pas laisser croire qu'il s'agit du meme identifiant.
 _FILTER_OPTIONS: dict[str, int | None] = {
-    "Tous les clusters": None,
-    "Cluster 0 — Fort potentiel": 0,
-    "Cluster 1 — Potentiel modéré": 1,
-    "Cluster 2 — Potentiel limité": 2,
+    "Toutes les tranches": None,
+    "Fort potentiel (< 600 km)": 0,
+    "Potentiel modéré (600-1100 km)": 1,
+    "Potentiel limité (> 1100 km)": 2,
 }
 
 
@@ -469,7 +477,8 @@ def render() -> None:
     <div class="section-title">
       <span class="section-title__label">Carte des liaisons par potentiel de substitution</span>
       <span class="section-title__meta" style="font-size:0.8rem;">
-        Estimation par distance (Haversine) - segments issus de l'itineraire reel
+        Estimation par tranches de distance (Haversine) - distincte du cluster
+        KMeans du modele affiche ci-dessus - segments issus de l'itineraire reel
       </span>
     </div>
     """)
@@ -533,19 +542,19 @@ def render() -> None:
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <div style="width:28px; height:4px; background:{GREEN}; border-radius:2px;"></div>
         <span style="font-size:0.84rem; color:#143d35;">
-          <strong>Cluster 0</strong> - Fort potentiel (&lt; 600 km)
+          <strong>Fort potentiel</strong> - &lt; 600 km
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <div style="width:28px; height:4px; background:{ORANGE}; border-radius:2px;"></div>
         <span style="font-size:0.84rem; color:#143d35;">
-          <strong>Cluster 1</strong> - Potentiel modere (600-1100 km)
+          <strong>Potentiel modere</strong> - 600-1100 km
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:0.5rem;">
         <div style="width:28px; height:4px; background:{RED}; border-radius:2px;"></div>
         <span style="font-size:0.84rem; color:#143d35;">
-          <strong>Cluster 2</strong> - Potentiel limite (&gt; 1100 km)
+          <strong>Potentiel limite</strong> - &gt; 1100 km
         </span>
       </div>
     </div>

@@ -77,6 +77,17 @@ class TestClusterConstants:
     def test_ratios_co2_entre_0_et_1(self):
         assert all(0 < r < 1 for r in simulateur._CLUSTER_RATIO_CO2.values())
 
+    def test_ratios_monotones_avec_la_severite_des_labels(self):
+        """Régression fix #2 : 'Fort potentiel' (0) doit avoir le ratio le plus
+        faible et 'Potentiel limité' (2) le plus élevé, donc l'économie CO2
+        affichée décroît de 0 -> 1 -> 2 (et ne place plus 2 au-dessus de 1)."""
+        r0 = simulateur._CLUSTER_RATIO_CO2[0]
+        r1 = simulateur._CLUSTER_RATIO_CO2[1]
+        r2 = simulateur._CLUSTER_RATIO_CO2[2]
+        assert r0 < r1 < r2
+        eco = lambda r: round((1 - r) * 100)
+        assert eco(r0) > eco(r1) > eco(r2)
+
     def test_estimate_cluster_renvoie_toujours_une_cle_connue(self):
         for distance in (10, 600, 1100, 5000):
             cluster = simulateur._estimate_cluster(distance)
