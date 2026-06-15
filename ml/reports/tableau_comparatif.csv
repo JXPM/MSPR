@@ -1,0 +1,8 @@
+modele,optimise,ensemble,MAE,RMSE,R2
+XGBoost_optimise,Oui,Validation,0.68,1.173,0.971
+XGBoost,Non,Validation,0.751,1.308,0.964
+XGBoost_optimise,Oui,Test,0.758,1.419,0.959
+RandomForest,Non,Validation,1.13,1.642,0.943
+LightGBM,Non,Validation,1.605,2.28,0.89
+LinearRegression,Non,Validation,2.695,3.593,0.728
+Ridge,Non,Validation,2.697,3.594,0.728

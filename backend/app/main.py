@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.routes import gare_routes, health_routes, ligne_routes, stats_routes, trajet_routes
+from app.routes import gare_routes, health_routes, ligne_routes, predict_routes, stats_routes, trajet_routes
 from prometheus_fastapi_instrumentator import Instrumentator
 
 
@@ -77,3 +77,4 @@ app.include_router(trajet_routes.router)
 app.include_router(gare_routes.router)
 app.include_router(ligne_routes.router)
 app.include_router(stats_routes.router)
+app.include_router(predict_routes.router)
