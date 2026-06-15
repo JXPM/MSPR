@@ -1,4 +1,4 @@
-fastapi
+fastapi==0.115.12
 uvicorn
 sqlalchemy
 psycopg2-binary
@@ -7,7 +7,7 @@ python-dotenv
 alembic
 pytest
 httpx
-prometheus-fastapi-instrumentator
+prometheus-fastapi-instrumentator==7.1.0
 joblib
 scikit-learn
 xgboost

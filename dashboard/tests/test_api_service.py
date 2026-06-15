@@ -115,6 +115,91 @@ class TestGetTrajetsMap:
 
 
 @pytest.mark.api
+class TestPredictEmissions:
+    @patch("services.api_service.requests.post")
+    def test_appelle_le_bon_endpoint_avec_payload(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value.json.return_value = {"empreinte_train_kg": 10.0}
+        api_service.predict_emissions(450, "SNCF", "JOUR", 130)
+        assert mock_post.call_args[0][0] == "http://test-api:8000/predict/emissions"
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload == {
+            "distance_km": 450,
+            "operateur": "SNCF",
+            "type_service": "JOUR",
+            "duree_trajet_min": 130,
+        }
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_json_sur_200(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value.json.return_value = {"empreinte_train_kg": 10.08}
+        assert api_service.predict_emissions(450, "SNCF", "JOUR", 130) == {
+            "empreinte_train_kg": 10.08
+        }
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_dict_vide_sur_non_200(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=422)
+        assert api_service.predict_emissions(450, "SNCF", "JOUR", 130) == {}
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_dict_vide_sur_exception(self, mock_post):
+        mock_post.side_effect = Exception("connection refused")
+        assert api_service.predict_emissions(450, "SNCF", "JOUR", 130) == {}
+
+
+@pytest.mark.api
+class TestPredictCluster:
+    @patch("services.api_service.requests.post")
+    def test_appelle_le_bon_endpoint(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value.json.return_value = {"cluster": 1}
+        api_service.predict_cluster(450, 10.0, 71.0, 0.14)
+        assert mock_post.call_args[0][0] == "http://test-api:8000/predict/cluster"
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_dict_vide_sur_exception(self, mock_post):
+        mock_post.side_effect = Exception("boom")
+        assert api_service.predict_cluster(450, 10.0, 71.0, 0.14) == {}
+
+
+@pytest.mark.api
+class TestPredictFull:
+    @patch("services.api_service.requests.post")
+    def test_appelle_le_bon_endpoint_avec_payload(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value.json.return_value = {
+            "empreinte_train_kg": 10.08, "cluster": 1, "label": "Potentiel modere"
+        }
+        api_service.predict_full(450, "SNCF", "JOUR", 130)
+        assert mock_post.call_args[0][0] == "http://test-api:8000/predict/full"
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["operateur"] == "SNCF"
+        assert payload["type_service"] == "JOUR"
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_prediction_complete_sur_200(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=200)
+        mock_post.return_value.json.return_value = {
+            "empreinte_train_kg": 10.08, "cluster": 1, "label": "Potentiel modere"
+        }
+        result = api_service.predict_full(450, "SNCF", "JOUR", 130)
+        assert result["empreinte_train_kg"] == 10.08
+        assert result["cluster"] == 1
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_dict_vide_sur_500(self, mock_post):
+        mock_post.return_value = MagicMock(status_code=500)
+        assert api_service.predict_full(450, "SNCF", "JOUR", 130) == {}
+
+    @patch("services.api_service.requests.post")
+    def test_retourne_dict_vide_sur_exception(self, mock_post):
+        mock_post.side_effect = Exception("timeout")
+        assert api_service.predict_full(450, "SNCF", "JOUR", 130) == {}
+
+
+@pytest.mark.api
 class TestPing:
     @patch("services.api_service.requests.get")
     def test_returns_dict_with_ok_and_latency(self, mock_get):

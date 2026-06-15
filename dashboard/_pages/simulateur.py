@@ -45,9 +45,16 @@ _FILTER_OPTIONS: dict[str, int | None] = {
 
 @st.cache_data(ttl=300)
 def _load_operateurs() -> list[str]:
-    """Charge et trie la liste des operateurs depuis l'API."""
+    """Charge et trie la liste des operateurs depuis l'API.
+
+    Lève une exception sur liste vide pour ne pas figer en cache un échec
+    transitoire de l'API (cf. _load_segments_with_clusters).
+    """
     data = get_operateurs()
-    return sorted({op["operateur"] for op in data if op.get("operateur")})
+    operateurs = sorted({op["operateur"] for op in data if op.get("operateur")})
+    if not operateurs:
+        raise RuntimeError("API /stats/operateurs indisponible ou vide")
+    return operateurs
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -77,8 +84,15 @@ def _estimate_cluster(distance_km: float) -> int:
 
 @st.cache_data(ttl=3600)
 def _load_segments_with_clusters() -> list[dict]:
-    """Charge les segments de la carte et calcule le profil CO2 de chacun."""
+    """Charge les segments de la carte et calcule le profil CO2 de chacun.
+
+    Lève une exception si l'API ne renvoie rien : st.cache_data ne met pas en
+    cache les exceptions, donc un échec transitoire (API down, timeout) n'est
+    pas figé pour toute la durée du TTL et sera réessayé au prochain rendu.
+    """
     segments = get_trajets_map()
+    if not segments:
+        raise RuntimeError("API /stats/trajets/map indisponible ou vide")
     result = []
     for seg in segments:
         try:
@@ -379,7 +393,10 @@ def render() -> None:
     </div>
     """)
 
-    operateurs = _load_operateurs()
+    try:
+        operateurs = _load_operateurs()
+    except Exception:
+        operateurs = []
     fallback_ops = ["OBB Nightjet", "SNCF", "Deutsche Bahn"] if not operateurs else operateurs
 
     col1, col2 = st.columns(2)
@@ -458,7 +475,10 @@ def render() -> None:
     """)
 
     with st.spinner("Chargement de la carte..."):
-        segments = _load_segments_with_clusters()
+        try:
+            segments = _load_segments_with_clusters()
+        except Exception:
+            segments = []
 
     if not segments:
         st.html("""
