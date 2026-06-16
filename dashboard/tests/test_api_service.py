@@ -28,6 +28,24 @@ class TestGetTrajets:
         result = api_service.get_trajets()
         assert result == [{"trajet_id": "SNC-1001", "gare_depart": "Paris Nord"}]
 
+    @patch("services.api_service.time.sleep")  # n'attend pas vraiment entre les essais
+    @patch("services.api_service.requests.get")
+    def test_returns_empty_on_invalid_json(self, mock_get, _sleep):
+        # Cold start Render : le backend renvoie une page HTML, pas du JSON.
+        mock_response = MagicMock(status_code=200)
+        mock_response.json.side_effect = ValueError("Expecting value")
+        mock_get.return_value = mock_response
+        assert api_service.get_trajets() == []
+
+    @patch("services.api_service.time.sleep")
+    @patch("services.api_service.requests.get")
+    def test_returns_empty_on_http_error(self, mock_get, _sleep):
+        # Backend endormi / redéploiement : 502 -> raise_for_status lève.
+        mock_response = MagicMock(status_code=502)
+        mock_response.raise_for_status.side_effect = Exception("502 Bad Gateway")
+        mock_get.return_value = mock_response
+        assert api_service.get_trajets() == []
+
 
 @pytest.mark.api
 class TestGetTrajetItineraire:
