@@ -85,7 +85,10 @@ class TestClusterConstants:
         r1 = simulateur._CLUSTER_RATIO_CO2[1]
         r2 = simulateur._CLUSTER_RATIO_CO2[2]
         assert r0 < r1 < r2
-        eco = lambda r: round((1 - r) * 100)
+
+        def eco(r):
+            return round((1 - r) * 100)
+
         assert eco(r0) > eco(r1) > eco(r2)
 
     def test_estimate_cluster_renvoie_toujours_une_cle_connue(self):
