@@ -19,13 +19,34 @@ def _resolve(name: str, default: str) -> str:
 API_URL = _resolve("API_URL", "http://localhost:8000")
 PROMETHEUS_URL = _resolve("PROMETHEUS_URL", "http://prometheus:9090")
 
+
+def _get_json(path: str, *, default, timeout: float = 10, retries: int = 1):
+    """GET {API_URL}{path} et renvoie le JSON décodé, de façon résiliente.
+
+    Le backend prod (Render plan free) s'endort après inactivité : pendant
+    son réveil (~50 s) ou un redéploiement il renvoie un 502 / une page HTML
+    au lieu de JSON, ce qui faisait planter la page (`JSONDecodeError`).
+    Ici on lève sur statut != 2xx (`raise_for_status`), on retente une fois
+    pour absorber un blip transitoire, puis on renvoie `default` plutôt que
+    de propager l'erreur.
+    """
+    url = f"{API_URL}{path}"
+    for attempt in range(retries + 1):
+        try:
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except Exception:  # réseau, statut 4xx/5xx, ou corps non-JSON
+            if attempt < retries:
+                time.sleep(1.0)  # laisse le backend finir son réveil
+    return default
+
 # ──────────────────────────────────────────────────────────
 #  Données métier
 # ──────────────────────────────────────────────────────────
 
 def get_trajets():
-    response = requests.get(f"{API_URL}/trajets", timeout=10)
-    return response.json()
+    return _get_json("/trajets", default=[])
 
 
 def get_trajet_itineraire(trajet_id: str):
@@ -41,13 +62,11 @@ def get_trajet_itineraire(trajet_id: str):
 
 
 def get_gares():
-    response = requests.get(f"{API_URL}/gares", timeout=10)
-    return response.json()
+    return _get_json("/gares", default=[])
 
 
 def get_lignes():
-    response = requests.get(f"{API_URL}/lignes", timeout=10)
-    return response.json()
+    return _get_json("/lignes", default=[])
 
 
 # ──────────────────────────────────────────────────────────
@@ -55,23 +74,23 @@ def get_lignes():
 # ──────────────────────────────────────────────────────────
 
 def get_trajets_count():
-    return requests.get(f"{API_URL}/stats/trajets/count", timeout=10).json()
+    return _get_json("/stats/trajets/count", default={})
 
 
 def get_gares_count():
-    return requests.get(f"{API_URL}/stats/gares/count", timeout=10).json()
+    return _get_json("/stats/gares/count", default={})
 
 
 def get_lignes_count():
-    return requests.get(f"{API_URL}/stats/lignes/count", timeout=10).json()
+    return _get_json("/stats/lignes/count", default={})
 
 
 def get_pays_count():
-    return requests.get(f"{API_URL}/stats/pays/count", timeout=10).json()
+    return _get_json("/stats/pays/count", default={})
 
 
 def get_emissions():
-    return requests.get(f"{API_URL}/stats/emissions", timeout=10).json()
+    return _get_json("/stats/emissions", default={})
 
 
 def get_operateurs():
@@ -85,10 +104,13 @@ def get_operateurs():
 
 
 def get_trajets_map():
-    response = requests.get(f"{API_URL}/stats/trajets/map", timeout=15)
-    if response.status_code != 200:
+    try:
+        response = requests.get(f"{API_URL}/stats/trajets/map", timeout=15)
+        if response.status_code != 200:
+            return []
+        return response.json()
+    except Exception:  # réseau ou corps non-JSON pendant un cold start
         return []
-    return response.json()
 
 
 def get_trajets_type():
