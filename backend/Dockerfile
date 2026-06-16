@@ -39,10 +39,13 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-# uvicorn en prod : 4 workers, accept logs JSON-friendly
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "4", \
-     "--access-log", \
-     "--proxy-headers"]
+# uvicorn en prod. Chaque worker charge les modèles ML en mémoire : sur le
+# plan free Render (512 Mi), 4 workers provoquent un OOM. Défaut = 1 worker,
+# surchargeable via WEB_CONCURRENCY sur des instances plus grosses.
+# Forme shell volontaire pour permettre la substitution de la variable.
+CMD uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers ${WEB_CONCURRENCY:-1} \
+    --access-log \
+    --proxy-headers
