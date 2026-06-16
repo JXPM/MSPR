@@ -28,6 +28,8 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-mspr2}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:4173,http://localhost:8501}
+    volumes:
+      - ./ml:/app/ml:ro
     ports:
       - "8000:8000"
     depends_on:

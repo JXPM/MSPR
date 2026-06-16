@@ -127,6 +127,7 @@ def trajets_map(db: Session = Depends(get_db)):
             Itineraire.id_itineraire,
             Gare.latitude,
             Gare.longitude,
+            Gare.nom_gare,
         )
         .join(Gare, Gare.code_uic == Itineraire.code_uic)
         .filter(Itineraire.trajet_id.in_(trajet_ids))
@@ -138,8 +139,8 @@ def trajets_map(db: Session = Depends(get_db)):
 
     # -- Étape 3 : regrouper par trajet et construire les segments ------------
     by_trajet = defaultdict(list)
-    for trajet_id, order_idx, lat, lon in rows:
-        by_trajet[trajet_id].append((order_idx, lat, lon))
+    for trajet_id, order_idx, lat, lon, nom in rows:
+        by_trajet[trajet_id].append((order_idx, lat, lon, nom))
 
     seen = set()
     segments = []
@@ -149,8 +150,8 @@ def trajets_map(db: Session = Depends(get_db)):
         stops.sort(key=lambda x: x[0])
 
         for i in range(len(stops) - 1):
-            _, lat1, lon1 = stops[i]
-            _, lat2, lon2 = stops[i + 1]
+            _, lat1, lon1, nom1 = stops[i]
+            _, lat2, lon2, nom2 = stops[i + 1]
 
             # Déduplique les tronçons identiques (même segment dans trajets différents)
             key = (round(lat1, 4), round(lon1, 4), round(lat2, 4), round(lon2, 4))
@@ -163,6 +164,8 @@ def trajets_map(db: Session = Depends(get_db)):
                 "lon_depart":  lon1,
                 "lat_arrivee": lat2,
                 "lon_arrivee": lon2,
+                "nom_depart":  nom1,
+                "nom_arrivee": nom2,
             })
 
     return segments
