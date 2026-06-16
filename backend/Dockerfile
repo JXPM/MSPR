@@ -14,11 +14,20 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Install des deps en couche dédiée pour le cache Docker
-COPY requirements.txt .
+# NB: contexte de build = racine du repo (cf. .dockerignore), d'où les chemins backend/…
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Code applicatif
-COPY app/ ./app/
+COPY backend/app/ ./app/
+
+# Modèles ML + code d'inférence : nécessaires aux routes /predict.
+# Embarqués dans l'image pour fonctionner sans volume (ex. déploiement Render),
+# contrairement au montage ./ml:/app/ml utilisé en local via docker-compose.
+COPY ml/__init__.py ./ml/__init__.py
+COPY ml/api/ ./ml/api/
+COPY ml/models/ ./ml/models/
+COPY ml/data/processed/ ./ml/data/processed/
 
 # Créer un user non-root (sécurité)
 RUN groupadd --system app && useradd --system --gid app app \

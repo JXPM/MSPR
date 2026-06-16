@@ -4,8 +4,8 @@ services:
     runtime: docker
     plan: free
     region: frankfurt
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    # Contexte = racine du repo pour embarquer ml/ (modèles + inférence) dans l'image.
+    dockerfilePath: backend/Dockerfile
     dockerContext: .
     healthCheckPath: /health
     envVars:
