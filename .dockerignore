@@ -1,0 +1,44 @@
+# Contexte de build = racine du repo (backend embarque ml/).
+# On exclut tout ce qui n'est pas nécessaire à l'image backend pour garder
+# le contexte léger (sinon venv 1.6G + .git 199M seraient envoyés au builder).
+
+# Environnements / VCS
+venv/
+.venv/
+.git/
+.github/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / front
+node_modules/
+dashboard/
+*.streamlit/
+
+# ETL / data brutes / monitoring (hors scope backend)
+talend/
+monitoring/
+
+# ML : on ne garde que l'inférence (api + models + processed).
+# Tout le reste de ml/ (notebooks, entraînement, données brutes/splits, rapports)
+# est inutile à l'image et parfois volumineux.
+ml/notebooks/
+ml/src/
+ml/reports/
+ml/tests/
+ml/data/raw/
+ml/data/splits/
+ml/requirements.txt
+ml/README.md
+
+# Docs / divers
+documentations/
+*.md
+.agents/
+.claude/
+skills-lock.json
+.env
+.env.*
