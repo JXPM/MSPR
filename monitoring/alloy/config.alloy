@@ -1,0 +1,35 @@
+// Grafana Alloy — collecteur de métriques ObRail vers Grafana Cloud
+//
+// Pourquoi : le backend tourne sur Render (plan free) et le Grafana de prod est
+// Grafana Cloud, qui ne *scrape* pas directement un endpoint public — il ne fait
+// que des checks synthétiques (uptime/latence). Ce collecteur scrape donc le
+// /metrics du backend (dont les métriques du modèle IA) et les pousse vers le
+// Prometheus hébergé de Grafana Cloud via remote_write.
+//
+// Toute la configuration sensible passe par des variables d'environnement
+// (cf. .env / .env.example) : rien de secret n'est versionné.
+
+// 1) Scrape le /metrics du backend (Render en prod, ou backend:8000 en local).
+prometheus.scrape "obrail_backend" {
+  targets = [{
+    __address__      = sys.env("BACKEND_METRICS_TARGET"), // ex: obrail-backend.onrender.com:443
+    __scheme__       = coalesce(sys.env("BACKEND_METRICS_SCHEME"), "https"),
+    __metrics_path__ = "/metrics",
+    instance         = coalesce(sys.env("BACKEND_METRICS_INSTANCE"), "obrail-backend-prod"),
+    service          = "api",
+    environment      = "production",
+  }]
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// 2) Pousse les séries vers Grafana Cloud (Prometheus hébergé).
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL") // ex: https://prometheus-prod-XX-prod-YY.grafana.net/api/prom/push
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USER")  // l'ID d'instance numérique
+      password = sys.env("GRAFANA_CLOUD_PROM_TOKEN") // un token Grafana Cloud (rôle MetricsPublisher)
+    }
+  }
+}
