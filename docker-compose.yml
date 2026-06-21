@@ -90,6 +90,33 @@ services:
     networks:
       - obrail
 
+  # Collecteur optionnel : scrape le /metrics du backend (Render en prod) et
+  # pousse vers Grafana Cloud. Démarrage explicite via le profil "cloud" :
+  #   docker compose --profile cloud up alloy
+  # Ne fait rien tant que les variables GRAFANA_CLOUD_* ne sont pas renseignées.
+  alloy:
+    image: grafana/alloy:latest
+    container_name: obrail-alloy
+    profiles: ["cloud"]
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+    environment:
+      BACKEND_METRICS_TARGET: ${BACKEND_METRICS_TARGET:-obrail-backend.onrender.com:443}
+      BACKEND_METRICS_SCHEME: ${BACKEND_METRICS_SCHEME:-https}
+      BACKEND_METRICS_INSTANCE: ${BACKEND_METRICS_INSTANCE:-obrail-backend-prod}
+      GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL:-}
+      GRAFANA_CLOUD_PROM_USER: ${GRAFANA_CLOUD_PROM_USER:-}
+      GRAFANA_CLOUD_PROM_TOKEN: ${GRAFANA_CLOUD_PROM_TOKEN:-}
+    ports:
+      - "12345:12345"
+    restart: unless-stopped
+    networks:
+      - obrail
+
 networks:
   obrail:
     driver: bridge
