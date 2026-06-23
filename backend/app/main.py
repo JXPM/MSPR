@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import time
 from collections import defaultdict
@@ -10,6 +11,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.routes import gare_routes, health_routes, ligne_routes, predict_routes, stats_routes, trajet_routes
 from prometheus_fastapi_instrumentator import Instrumentator
+
+# Journalisation applicative : une configuration unique, lue par tous les
+# loggers du backend (dont "obrail.predictions" dans predict_routes). Sortie sur
+# stdout -> capturee par Render en prod et par `docker logs` en local (12-factor).
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 
 def _parse_origins(raw: str) -> list[str]:

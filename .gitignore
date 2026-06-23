@@ -21,3 +21,11 @@ htmlcov/
 # Codex / agent state
 .codex
 .codex/
+
+# Outillage agent local (Claude Code, skills de design installés)
+.claude/
+.agents/
+skills-lock.json
+
+# Second cerveau LLM Wiki (repo git séparé, non poussé)
+brain/

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import json
+import logging
 import os
 import sys
 from time import perf_counter
@@ -17,6 +19,33 @@ from app.schemas.predict_schema import (
 )
 
 router = APIRouter(prefix="/predict", tags=["Predictions"])
+
+# Journalisation des predictions : premiere brique du feedback loop MLOps.
+# Chaque appel ecrit une ligne JSON (entrees + sortie + latence + statut), ce
+# qui permet ensuite de rejouer les predictions face a la valeur reelle pour
+# detecter une derive (data drift) et declencher un reentrainement.
+logger = logging.getLogger("obrail.predictions")
+
+
+def _log_prediction(endpoint, status, inputs, latency_s, output=None, error=None):
+    """Journalise une prediction sous forme d'une ligne JSON exploitable."""
+    record = {
+        "event": "prediction",
+        "endpoint": endpoint,
+        "status": status,
+        "inputs": inputs,
+        "latency_ms": round(latency_s * 1000, 2),
+    }
+    if output is not None:
+        record["output"] = output
+    if error is not None:
+        record["error"] = error
+    payload = json.dumps(record, ensure_ascii=False, default=str)
+    if status == "success":
+        logger.info(payload)
+    else:
+        logger.error(payload)
+
 
 _MODELS: Optional[dict] = None
 _predict_emissions_fn: Optional[Callable] = None
@@ -90,8 +119,14 @@ def _require_models() -> dict:
 def predict_co2_emissions(request: EmissionsRequest) -> EmissionsResponse:
     """Predit l'empreinte CO2 d'un trajet ferroviaire en kg de CO2."""
     models = _require_models()
+    inputs = {
+        "distance_km": request.distance_km,
+        "operateur": request.operateur,
+        "type_service": request.type_service,
+        "duree_trajet_min": request.duree_trajet_min,
+    }
+    start = perf_counter()
     try:
-        start = perf_counter()
         empreinte = _predict_emissions_fn(
             request.distance_km,
             request.operateur,
@@ -99,14 +134,18 @@ def predict_co2_emissions(request: EmissionsRequest) -> EmissionsResponse:
             request.duree_trajet_min,
             models,
         )
-        ml_metrics.predict_latency_seconds.labels(endpoint="emissions").observe(perf_counter() - start)
+        latency = perf_counter() - start
+        ml_metrics.predict_latency_seconds.labels(endpoint="emissions").observe(latency)
         ml_metrics.record_emission(
             request.distance_km, request.operateur, request.type_service,
             request.duree_trajet_min, empreinte, models,
         )
         ml_metrics.predict_requests_total.labels(endpoint="emissions", status="success").inc()
+        _log_prediction("emissions", "success", inputs, latency,
+                        output={"empreinte_train_kg": round(empreinte, 3)})
     except Exception as exc:
         ml_metrics.predict_requests_total.labels(endpoint="emissions", status="error").inc()
+        _log_prediction("emissions", "error", inputs, perf_counter() - start, error=str(exc))
         raise HTTPException(status_code=500, detail=f"Erreur de prediction: {exc}")
     return EmissionsResponse(
         empreinte_train_kg=empreinte,
@@ -120,8 +159,14 @@ def predict_co2_emissions(request: EmissionsRequest) -> EmissionsResponse:
 def predict_substitution_cluster(request: ClusterRequest) -> ClusterResponse:
     """Identifie le profil de substitution avion/train d'un trajet (cluster KMeans)."""
     models = _require_models()
+    inputs = {
+        "distance_km": request.distance_km,
+        "empreinte_train_kg": request.empreinte_train_kg,
+        "empreinte_avion_kg": request.empreinte_avion_kg,
+        "ratio_co2": request.ratio_co2,
+    }
+    start = perf_counter()
     try:
-        start = perf_counter()
         cluster_id, label = _predict_cluster_fn(
             request.distance_km,
             request.empreinte_train_kg,
@@ -129,11 +174,15 @@ def predict_substitution_cluster(request: ClusterRequest) -> ClusterResponse:
             request.ratio_co2,
             models,
         )
-        ml_metrics.predict_latency_seconds.labels(endpoint="cluster").observe(perf_counter() - start)
+        latency = perf_counter() - start
+        ml_metrics.predict_latency_seconds.labels(endpoint="cluster").observe(latency)
         ml_metrics.record_cluster(cluster_id)
         ml_metrics.predict_requests_total.labels(endpoint="cluster", status="success").inc()
+        _log_prediction("cluster", "success", inputs, latency,
+                        output={"cluster": cluster_id, "label": label})
     except Exception as exc:
         ml_metrics.predict_requests_total.labels(endpoint="cluster", status="error").inc()
+        _log_prediction("cluster", "error", inputs, perf_counter() - start, error=str(exc))
         raise HTTPException(status_code=500, detail=f"Erreur de clustering: {exc}")
     return ClusterResponse(
         cluster=cluster_id,
@@ -146,8 +195,14 @@ def predict_substitution_cluster(request: ClusterRequest) -> ClusterResponse:
 def predict_full(request: PredictFullRequest) -> PredictFullResponse:
     """Calcule l'empreinte CO2 et le cluster de substitution en un seul appel."""
     models = _require_models()
+    inputs = {
+        "distance_km": request.distance_km,
+        "operateur": request.operateur,
+        "type_service": request.type_service,
+        "duree_trajet_min": request.duree_trajet_min,
+    }
+    start = perf_counter()
     try:
-        start = perf_counter()
         empreinte = _predict_emissions_fn(
             request.distance_km,
             request.operateur,
@@ -165,15 +220,22 @@ def predict_full(request: PredictFullRequest) -> PredictFullResponse:
             ratio,
             models,
         )
-        ml_metrics.predict_latency_seconds.labels(endpoint="full").observe(perf_counter() - start)
+        latency = perf_counter() - start
+        ml_metrics.predict_latency_seconds.labels(endpoint="full").observe(latency)
         ml_metrics.record_emission(
             request.distance_km, request.operateur, request.type_service,
             request.duree_trajet_min, empreinte, models,
         )
         ml_metrics.record_cluster(cluster_id)
         ml_metrics.predict_requests_total.labels(endpoint="full", status="success").inc()
+        _log_prediction("full", "success", inputs, latency, output={
+            "empreinte_train_kg": round(empreinte, 3),
+            "cluster": cluster_id,
+            "label": label,
+        })
     except Exception as exc:
         ml_metrics.predict_requests_total.labels(endpoint="full", status="error").inc()
+        _log_prediction("full", "error", inputs, perf_counter() - start, error=str(exc))
         raise HTTPException(status_code=500, detail=f"Erreur de prediction: {exc}")
     return PredictFullResponse(
         empreinte_train_kg=empreinte,
