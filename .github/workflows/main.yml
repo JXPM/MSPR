@@ -247,8 +247,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # L'image backend embarque le ML (xgboost tire nvidia-nccl ~300 Mo, etc.)
+      # et sature le disque du runner pendant `docker compose up --build` :
+      # Postgres ne peut plus écrire son volume et crashe ("unhealthy" en ~2s).
+      # On libère ~20-30 Go de toolchains inutiles avant de démarrer la stack.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
+                      /usr/local/share/powershell /usr/share/swift || true
+          df -h /
+
       - name: Start stack
         run: docker compose up -d
+        env:
+          POSTGRES_PASSWORD: postgres
+          GRAFANA_USER: admin
+          GRAFANA_PASSWORD: admin
+
+      - name: Diagnostics si la stack ne démarre pas
+        if: failure()
+        run: |
+          echo "=== df -h ===" && df -h /
+          echo "=== compose ps ===" && docker compose ps
+          echo "=== logs postgres ===" && docker compose logs postgres | tail -60
         env:
           POSTGRES_PASSWORD: postgres
           GRAFANA_USER: admin
