@@ -16,6 +16,10 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      # Fenêtre de grâce pendant le chargement du dump SQL initial : évite que
+      # les sondes échouées durant l'init soient comptées comme un échec de
+      # santé (cause de flaky E2E en CI : "obrail-postgres is unhealthy").
+      start_period: 30s
     restart: unless-stopped
     networks:
       - obrail

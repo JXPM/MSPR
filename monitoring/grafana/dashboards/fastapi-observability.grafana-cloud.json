@@ -326,7 +326,7 @@
             "type": "prometheus",
             "uid": "${DS_PROM}"
           },
-          "expr": "up{service=\"api\"}",
+          "expr": "up{job=\"obrail-backend\"}",
           "legendFormat": "Backend",
           "refId": "A"
         }
