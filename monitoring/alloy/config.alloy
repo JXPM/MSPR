@@ -19,6 +19,11 @@ prometheus.scrape "obrail_backend" {
     service          = "api",
     environment      = "production",
   }]
+  // Aligne le label `job` sur la convention du Prometheus local (prometheus.yml
+  // job_name: 'obrail-backend') : sans ça, Alloy met job="prometheus.scrape.
+  // obrail_backend" et les panneaux qui interrogent up{job="obrail-backend"}
+  // restent "No data" en cloud. Même requête => marche en local ET en cloud.
+  job_name        = "obrail-backend"
   scrape_interval = "30s"
   forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
 }
