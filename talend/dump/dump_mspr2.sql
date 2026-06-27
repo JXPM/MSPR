@@ -27305,6 +27305,7 @@ VY	Vygruppen AS	NO
 ŽPCG	Željeznički prevoz Crne Gore AD	ME
 ŽS	Железнице Србије ад	RS
 ZSSK	Železničná spoločnosť Slovensko a.s.	SK
+ZSSR	Železničná spoločnosť Slovensko a.s.	SK
 \.
 
 
