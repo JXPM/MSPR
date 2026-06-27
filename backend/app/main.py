@@ -34,7 +34,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
-Instrumentator().instrument(app).expose(app)
+Instrumentator(
+    should_instrument_requests_inprogress=True,
+    inprogress_labels=True,
+).instrument(app).expose(app)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
