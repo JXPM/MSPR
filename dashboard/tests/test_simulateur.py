@@ -69,32 +69,19 @@ class TestEstimateCluster:
 class TestClusterConstants:
     def test_toutes_les_tables_couvrent_les_trois_clusters(self):
         attendu = {0, 1, 2}
-        assert set(simulateur._CLUSTER_RATIO_CO2) == attendu
         assert set(simulateur._CLUSTER_LABELS) == attendu
         assert set(simulateur._CLUSTER_COLORS) == attendu
         assert set(simulateur._CLUSTER_NAMES) == attendu
 
-    def test_ratios_co2_entre_0_et_1(self):
-        assert all(0 < r < 1 for r in simulateur._CLUSTER_RATIO_CO2.values())
-
-    def test_ratios_monotones_avec_la_severite_des_labels(self):
-        """Régression fix #2 : 'Fort potentiel' (0) doit avoir le ratio le plus
-        faible et 'Potentiel limité' (2) le plus élevé, donc l'économie CO2
-        affichée décroît de 0 -> 1 -> 2 (et ne place plus 2 au-dessus de 1)."""
-        r0 = simulateur._CLUSTER_RATIO_CO2[0]
-        r1 = simulateur._CLUSTER_RATIO_CO2[1]
-        r2 = simulateur._CLUSTER_RATIO_CO2[2]
-        assert r0 < r1 < r2
-
-        def eco(r):
-            return round((1 - r) * 100)
-
-        assert eco(r0) > eco(r1) > eco(r2)
+    def test_facteurs_emission_coherents(self):
+        # Le train doit emettre nettement moins au km que la croisiere avion,
+        # et l'avion doit porter un surcout fixe (LTO) strictement positif.
+        assert 0 < simulateur._TRAIN_PER_KM < simulateur._AVION_PER_KM
+        assert simulateur._AVION_LTO_KG > 0
 
     def test_estimate_cluster_renvoie_toujours_une_cle_connue(self):
         for distance in (10, 600, 1100, 5000):
             cluster = simulateur._estimate_cluster(distance)
-            assert cluster in simulateur._CLUSTER_RATIO_CO2
             assert cluster in simulateur._CLUSTER_LABELS
 
 
@@ -140,6 +127,40 @@ class TestLoadSegmentsWithClusters:
             enriched = simulateur._load_segments_with_clusters()[0]
         assert enriched["empreinte_train_kg"] < enriched["empreinte_avion_kg"]
         assert 0 < enriched["economie_pct"] <= 100
+
+    def test_ignore_les_segments_de_distance_nulle(self):
+        """Régression fix #1 : un segment dont le départ == l'arrivée (0 km, ex.
+        Bratislava hl.st. -> Bratislava hl.st.) ne doit PAS apparaître : 0 km =
+        aucune émission, donc aucune économie CO2 à afficher."""
+        boucle = {
+            "lat_depart": 48.1486, "lon_depart": 17.1077,
+            "lat_arrivee": 48.1486, "lon_arrivee": 17.1077,
+            "nom_depart": "Bratislava hl.st.", "nom_arrivee": "Bratislava hl.st.",
+        }
+        with patch("_pages.simulateur.get_trajets_map", return_value=[boucle]):
+            result = simulateur._load_segments_with_clusters()
+        assert result == []
+
+    def test_economie_varie_avec_la_distance(self):
+        """Régression fix #2 : l'économie CO2 ne doit plus être figée à 3 valeurs
+        par cluster. Deux trajets de longueurs différentes doivent afficher des
+        économies différentes, et un trajet plus court doit économiser DAVANTAGE
+        (le surcoût fixe LTO de l'avion pèse plus lourd sur les courts trajets)."""
+        court = {
+            "lat_depart": 46.18, "lon_depart": 21.31,   # Arad
+            "lat_arrivee": 46.17, "lon_arrivee": 21.58,  # Curtici (~17 km)
+            "nom_depart": "Arad", "nom_arrivee": "Curtici",
+        }
+        long = {
+            "lat_depart": 48.8566, "lon_depart": 2.3522,   # Paris
+            "lat_arrivee": 45.7640, "lon_arrivee": 4.8357,  # Lyon (~390 km)
+            "nom_depart": "Paris", "nom_arrivee": "Lyon",
+        }
+        with patch("_pages.simulateur.get_trajets_map", return_value=[court, long]):
+            result = simulateur._load_segments_with_clusters()
+        eco = {s["nom_arrivee"]: s["economie_pct"] for s in result}
+        assert eco["Curtici"] != eco["Lyon"]
+        assert eco["Curtici"] > eco["Lyon"]
 
     def test_ignore_les_segments_malformes_sans_planter(self):
         bon = {

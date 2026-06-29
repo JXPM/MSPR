@@ -21,12 +21,14 @@ ORANGE = "#c95f37"
 RED = "#8d4040"
 NAVY = "#1d2a53"
 
-# Ratio CO2 train/avion moyen par cluster (profils KMeans du training notebook).
-# Ordonne de facon monotone avec la distance / la severite des labels :
-# cluster 0 (fort potentiel, trajets courts) = meilleur ratio (plus faible),
-# cluster 2 (potentiel limite, trajets longs) = ratio le plus eleve.
-# => l'economie CO2 affichee decroit bien de 0 vers 2 (97% > 89% > 86%).
-_CLUSTER_RATIO_CO2 = {0: 0.03, 1: 0.11, 2: 0.14}
+# Facteurs d'emission CO2 utilises pour estimer l'empreinte de chaque segment.
+# L'avion porte un surcout FIXE de cycle decollage/atterrissage (LTO) en plus de
+# la croisiere : c'est ce qui rend le vol disproportionnellement emetteur sur les
+# trajets courts. L'economie CO2 train/avion se calcule donc PAR SEGMENT (elle
+# decroit continument avec la distance) au lieu d'etre figee a 3 valeurs.
+_TRAIN_PER_KM = 0.022      # train de nuit electrique, kg CO2/km (cf. dump : ~14 kg / 604 km)
+_AVION_PER_KM = 0.158      # croisiere avion, kg CO2/km (meme facteur que la carte resultat)
+_AVION_LTO_KG = 8.0        # surcout fixe decollage/atterrissage, kg CO2 par passager
 _CLUSTER_LABELS = {
     0: "Fort potentiel",
     1: "Potentiel modere",
@@ -110,11 +112,16 @@ def _load_segments_with_clusters() -> list[dict]:
                 seg["lat_arrivee"],
                 seg["lon_arrivee"],
             )
+            # Segments degeneres (meme gare au depart et a l'arrivee) : 0 km,
+            # aucune emission, aucune economie a afficher -> on les ignore.
+            if dist <= 0:
+                continue
             cluster = _estimate_cluster(dist)
-            ratio = _CLUSTER_RATIO_CO2[cluster]
-            empreinte_avion = round(dist * 0.158, 2)
-            empreinte_train = round(empreinte_avion * ratio, 2)
-            economie_pct = round((1 - ratio) * 100)
+            raw_avion = dist * _AVION_PER_KM + _AVION_LTO_KG
+            raw_train = dist * _TRAIN_PER_KM
+            empreinte_avion = round(raw_avion, 2)
+            empreinte_train = round(raw_train, 2)
+            economie_pct = round((1 - raw_train / raw_avion) * 100)
             result.append({
                 **seg,
                 "cluster": cluster,
